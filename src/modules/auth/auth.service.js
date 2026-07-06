@@ -52,8 +52,13 @@ export const registerCustomer = async (userData) => {
     };
 };
 
-export const verifyOTP = async (mobile, otp) => {
-    const user = await authRepository.findUserByMobile(mobile);
+export const verifyOTP = async (identifier, otp) => {
+    let user;
+    if (identifier.includes("@")) {
+        user = await authRepository.findUserByEmail(identifier);
+    } else {
+        user = await authRepository.findUserByMobile(identifier);
+    }
     if (!user) throw new ApiError(404, "User not found");
 
     if (user.otp !== otp || user.otpExpiry < new Date()) {
@@ -129,6 +134,67 @@ export const onboardCustomer = async (userId, onboardingData) => {
     return {
         message: "Onboarding completed successfully",
         user
+    };
+};
+
+export const sendOtpForLogin = async (identifier) => {
+    let user;
+    if (identifier.includes("@")) {
+        user = await authRepository.findUserByEmail(identifier);
+    } else {
+        user = await authRepository.findUserByMobile(identifier);
+    }
+
+    if (!user) throw new ApiError(404, "Please register first");
+
+    const otp = "123456"; // Static OTP for testing
+    user.otp = otp;
+    user.otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+    await user.save();
+
+    // Skip actual SMS send
+    return { status: "OTP sent successfully" };
+};
+
+export const loginCustomer = async (identifier, password, otp) => {
+    let user;
+    if (identifier.includes("@")) {
+        user = await authRepository.findUserByEmail(identifier);
+    } else {
+        user = await authRepository.findUserByMobile(identifier);
+    }
+
+    if (!user) throw new ApiError(404, "User not found");
+
+    if (user.role.name !== "CUSTOMER") {
+        throw new ApiError(403, "Access denied. Not a customer account.");
+    }
+
+    if (password) {
+        if (!(await bcrypt.compare(password, user.password))) {
+            throw new ApiError(401, "Invalid credentials");
+        }
+    } else if (otp) {
+        if (user.otp !== otp || user.otpExpiry < new Date()) {
+            throw new ApiError(400, "Invalid or expired OTP");
+        }
+        user.otp = undefined;
+        user.otpExpiry = undefined;
+        await user.save();
+    } else {
+        throw new ApiError(400, "Please provide either password or OTP");
+    }
+
+    const tokens = await createSessionAndTokens(user);
+
+    return {
+        message: "Login successful",
+        user: {
+            id: user._id,
+            fullName: user.fullName,
+            role: user.role.name
+        },
+        ...tokens
     };
 };
 

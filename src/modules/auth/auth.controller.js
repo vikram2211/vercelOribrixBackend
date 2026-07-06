@@ -1,6 +1,6 @@
 import * as authService from "./auth.service.js";
 import { sendResponse } from "../../utils/response.js";
-import { registerSchema, loginSchema, verifyOtpSchema, onboardingSchema } from "./auth.validation.js";
+import { registerSchema, loginSchema, verifyOtpSchema, onboardingSchema, sendOtpSchema, customerLoginSchema } from "./auth.validation.js";
 import ApiError from "../../utils/ApiError.js";
 
 export const register = async (req, res, next) => {
@@ -20,7 +20,7 @@ export const verifyOtp = async (req, res, next) => {
         const { error, value } = verifyOtpSchema.validate(req.body);
         if (error) throw new ApiError(400, error.details[0].message);
 
-        const result = await authService.verifyOTP(value.mobile, value.otp);
+        const result = await authService.verifyOTP(value.identifier, value.otp);
         return sendResponse(res, 200, result.message, result);
     } catch (error) {
         next(error);
@@ -50,6 +50,30 @@ export const onboard = async (req, res, next) => {
 
         const result = await authService.onboardCustomer(userId, value);
         return sendResponse(res, 200, result.message, result.user);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const sendOtp = async (req, res, next) => {
+    try {
+        const { error, value } = sendOtpSchema.validate(req.body);
+        if (error) throw new ApiError(400, error.details[0].message);
+
+        const result = await authService.sendOtpForLogin(value.identifier);
+        return sendResponse(res, 200, result.status, null);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const customerLogin = async (req, res, next) => {
+    try {
+        const { error, value } = customerLoginSchema.validate(req.body);
+        if (error) throw new ApiError(400, error.details[0].message);
+
+        const result = await authService.loginCustomer(value.identifier, value.password, value.otp);
+        return sendResponse(res, 200, result.message, result);
     } catch (error) {
         next(error);
     }

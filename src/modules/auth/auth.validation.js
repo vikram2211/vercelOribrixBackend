@@ -19,8 +19,19 @@ export const otpLoginSchema = Joi.object({
     mobile: Joi.string().required().pattern(/^[0-9]{10}$/),
 });
 
+export const sendOtpSchema = Joi.object({
+    identifier: Joi.string().required(),
+});
+
+export const customerLoginSchema = Joi.object({
+    identifier: Joi.string().required(),
+    password: Joi.string(),
+    otp: Joi.string().length(6)
+}).xor('password', 'otp');
+
+
 export const verifyOtpSchema = Joi.object({
-    mobile: Joi.string().required().pattern(/^[0-9]{10}$/),
+    identifier: Joi.string().required(),
     otp: Joi.string().required().length(6)
 });
 
