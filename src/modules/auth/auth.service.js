@@ -5,18 +5,67 @@ import { generateAccessToken, generateRefreshToken } from "../../utils/jwt.js";
 import { sendOTP } from "../../services/sms.service.js";
 import ApiError from "../../utils/ApiError.js";
 
-export const registerCustomer = async (userData) => {
-    const { mobile, email, password } = userData;
+// export const registerCustomer = async (userData) => {
+//     const { mobile, email, password } = userData;
 
-    // Check if user exists
-    const existingUser = await authRepository.findUserByMobile(mobile);
-    if (existingUser) {
+//     // Check if user exists
+//     const existingUser = await authRepository.findUserByMobile(mobile);
+//     if (existingUser) {
+//         throw new ApiError(400, "User with this mobile number already exists");
+//     }
+
+//     if (email) {
+//         const existingEmail = await authRepository.findUserByEmail(email);
+//         if (existingEmail) {
+//             throw new ApiError(400, "User with this email already exists");
+//         }
+//     }
+
+//     // Get Customer Role
+//     const role = await authRepository.findRoleByName("CUSTOMER");
+//     if (!role) {
+//         throw new ApiError(500, "Customer role not found. Please seed the database.");
+//     }
+
+//     // Hash password
+//     const hashedPassword = await bcrypt.hash(password, 10);
+
+//     // Generate OTP
+//     const otp = Math.floor(100000 + Math.random() * 900000).toString();
+//     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
+
+//     // Create user
+//     const user = await authRepository.createUser({
+//         ...userData,
+//         password: hashedPassword,
+//         role: role._id,
+//         otp,
+//         otpExpiry,
+//         isVerified: false
+//     });
+
+//     await sendOTP(mobile, otp);
+
+//     return {
+//         message: "Registration successful. Please verify OTP sent to your mobile.",
+//         userId: user._id
+//     };
+// };
+
+export const registerCustomer = async (userData) => {
+    const { mobile, email, password, fullName, pincode } = userData;
+
+    // Check if user exists by mobile
+    let existingUser = await authRepository.findUserByMobile(mobile);
+    if (existingUser && existingUser.isVerified) {
         throw new ApiError(400, "User with this mobile number already exists");
     }
 
+    // Check if user exists by email
+    let existingEmailUser = null;
     if (email) {
-        const existingEmail = await authRepository.findUserByEmail(email);
-        if (existingEmail) {
+        existingEmailUser = await authRepository.findUserByEmail(email);
+        if (existingEmailUser && existingEmailUser.isVerified) {
             throw new ApiError(400, "User with this email already exists");
         }
     }
@@ -34,21 +83,36 @@ export const registerCustomer = async (userData) => {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
 
-    // Create user
-    const user = await authRepository.createUser({
-        ...userData,
-        password: hashedPassword,
-        role: role._id,
-        otp,
-        otpExpiry,
-        isVerified: false
-    });
+    let userToUpdate = existingUser || existingEmailUser;
+
+    if (userToUpdate) {
+        // Overwrite unverified record
+        userToUpdate.fullName = fullName || userToUpdate.fullName;
+        userToUpdate.email = email || userToUpdate.email;
+        userToUpdate.mobile = mobile;
+        userToUpdate.password = hashedPassword;
+        userToUpdate.pincode = pincode || userToUpdate.pincode;
+        userToUpdate.otp = otp;
+        userToUpdate.otpExpiry = otpExpiry;
+        userToUpdate.role = role._id;
+        await userToUpdate.save();
+    } else {
+        // Create new record
+        userToUpdate = await authRepository.createUser({
+            ...userData,
+            password: hashedPassword,
+            role: role._id,
+            otp,
+            otpExpiry,
+            isVerified: false
+        });
+    }
 
     await sendOTP(mobile, otp);
 
     return {
         message: "Registration successful. Please verify OTP sent to your mobile.",
-        userId: user._id
+        userId: userToUpdate._id
     };
 };
 
