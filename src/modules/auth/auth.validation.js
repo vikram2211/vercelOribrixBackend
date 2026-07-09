@@ -37,12 +37,17 @@ export const verifyOtpSchema = Joi.object({
 
 export const onboardingSchema = Joi.object({
     persona: Joi.string().valid("Contractor", "Builder", "Homeowner", "Architect").required(),
-    companyName: Joi.string().allow(""),
-    gstin: Joi.string().allow(""),
-    sites: Joi.array().items(Joi.object({
-        siteName: Joi.string().required(),
-        location: Joi.string().required(),
-        pincode: Joi.string().length(6).required()
-    })),
-    paymentPreference: Joi.string().valid("UPI", "Card", "EMI", "COD").optional()
+    companyName: Joi.string().allow("").optional(),
+    gstin: Joi.string().allow("").optional(),
+    sites: Joi.array().items(
+        Joi.object({
+            siteName: Joi.string().required(),
+            siteAddress: Joi.string().required(),
+            pincode: Joi.string().length(6).required()
+        })
+    ).optional(),
+    teamInvites: Joi.string().optional(),
+    paymentPreferences: Joi.array()
+        .items(Joi.string().valid("UPI", "Card", "EMI via PG", "COD"))
+        .optional()
 });
