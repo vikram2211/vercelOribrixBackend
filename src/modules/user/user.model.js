@@ -27,6 +27,7 @@ const userSchema = new Schema(
             type: String
         },
 
+        // Home / delivery area pincode — collected at registration
         pincode: {
             type: String
         },
@@ -35,35 +36,6 @@ const userSchema = new Schema(
             type: Schema.Types.ObjectId,
             ref: "Role",
             required: true
-        },
-
-        // Onboarding Fields
-        persona: {
-            type: String,
-            enum: ["Contractor", "Builder", "Homeowner", "Architect", null],
-            default: null
-        },
-
-        companyName: {
-            type: String
-        },
-
-        gstin: {
-            type: String
-        },
-
-        sites: [
-            {
-                siteName: String,
-                location: String,
-                pincode: String
-            }
-        ],
-
-        paymentPreference: {
-            type: String,
-            enum: ["UPI", "Card", "EMI", "COD", null],
-            default: null
         },
 
         // OTP Fields

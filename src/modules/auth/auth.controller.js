@@ -44,12 +44,11 @@ export const onboard = async (req, res, next) => {
         const { error, value } = onboardingSchema.validate(req.body);
         if (error) throw new ApiError(400, error.details[0].message);
 
-        // Assume userId comes from auth middleware later, for now from body or params for testing
-        const userId = req.body.userId || req.params.userId;
-        if (!userId) throw new ApiError(400, "User ID is required for onboarding");
+        // userId is injected by the authenticate middleware via JWT
+        const userId = req.user.userId;
 
         const result = await authService.onboardCustomer(userId, value);
-        return sendResponse(res, 200, result.message, result.user);
+        return sendResponse(res, 200, result.message, result.profile);
     } catch (error) {
         next(error);
     }
