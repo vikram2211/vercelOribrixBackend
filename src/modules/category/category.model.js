@@ -10,28 +10,17 @@ const categorySchema = new Schema(
       unique: true,
       trim: true
     },
-
     slug: {
       type: String,
       unique: true
     },
-
     image: {
-      type: String
+      type: String,
+      default:"",
     },
-
-    description: {
-      type: String
-    },
-
     isActive: {
       type: Boolean,
       default: true
-    },
-
-    sortOrder: {
-      type: Number,
-      default: 0
     }
   },
   {
