@@ -10,6 +10,11 @@ const userSchema = new Schema(
             trim: true
         },
 
+        photo: {
+            type: String,
+            default: ""
+        },
+
         email: {
             type: String,
             unique: true,

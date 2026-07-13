@@ -1,5 +1,6 @@
 import express from "express";
 import { authenticate, authorize } from "../../middleware/auth.middleware.js";
+import { uploadProfile } from "../../middleware/upload.middleware.js";
 import { deleteProfileDetails, displayProfileDetails, editProfileDetails } from "./customerProfile.controller.js";
 import { displaySites ,addSites, editSites, deleteSites, displaySiteName,} from "../site/site.controller.js";
 import { addAddress, deleteAddress, displayAddress, editAddress } from "../address/address.controller.js";
@@ -11,7 +12,13 @@ router.get("/v1/profile",
     authorize("CUSTOMER"),
     displayProfileDetails
 );
-router.patch("/v1/profile", authenticate, authorize("CUSTOMER"), editProfileDetails);
+router.patch(
+    "/v1/profile",
+    authenticate,
+    authorize("CUSTOMER"),
+    uploadProfile.single("photo"),
+    editProfileDetails
+);
 router.delete("/v1/profile", authenticate, authorize("CUSTOMER"), deleteProfileDetails);
 
 // Sites ==================

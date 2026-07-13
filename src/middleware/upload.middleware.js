@@ -77,3 +77,22 @@ export const uploadCategory = multer({
     limits: { fileSize: 5 * 1024 * 1024 },
     fileFilter: imageFilter,
 });
+
+const profileStorage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: {
+        folder: "oribrix/profiles",
+        allowed_formats: ["jpeg", "jpg", "png"],
+        format: async () => "jpg",
+        public_id: (req, file) => {
+            const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+            return `${file.fieldname}-${uniqueSuffix}`;
+        },
+    },
+});
+
+export const uploadProfile = multer({
+    storage: profileStorage,
+    limits: { fileSize: 5 * 1024 * 1024 },
+    fileFilter: imageFilter,
+});
