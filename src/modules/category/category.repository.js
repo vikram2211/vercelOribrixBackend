@@ -6,7 +6,11 @@ export const findAllCategories = async () => {
 
 export const findCategoriesPaginated = async ({ filter, skip, limit }) => {
   const [categories, total] = await Promise.all([
-    Category.find(filter).sort({ createdAt: 1 }).skip(skip).limit(limit),
+    Category.find(filter)
+      .select("_id name image")
+      .sort({ createdAt: 1 })
+      .skip(skip)
+      .limit(limit),
     Category.countDocuments(filter),
   ]);
 
