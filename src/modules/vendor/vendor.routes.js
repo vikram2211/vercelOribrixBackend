@@ -11,7 +11,11 @@ router.post("/kyc-upload/:vendorId",
         { name: "gstCert", maxCount: 1 },
         { name: "panCard", maxCount: 1 },
         { name: "cancelledCheque", maxCount: 1 },
-        { name: "msmeUdyam", maxCount: 1 }
+        { name: "msmeUdyam", maxCount: 1 },
+        { name: "shopAndTradeLicense", maxCount: 1 },
+        { name: "ownerAadhaarDoc", maxCount: 1 },
+        { name: "oribrixSellerAgreement", maxCount: 1 },
+        { name: "iso9001", maxCount: 1 }
     ]),
     vendorController.uploadKYC
 );
