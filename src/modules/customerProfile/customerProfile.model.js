@@ -2,6 +2,17 @@ import mongoose from "mongoose";
 
 const { Schema, model } = mongoose;
 
+const memberSchema = new Schema(
+  {
+    name: {
+      type: String,
+      required: false,
+      trim: true,
+    },
+  },
+  { _id: true }
+);
+
 // Sub-schema for each construction site
 const siteSchema = new Schema(
     {
@@ -19,10 +30,13 @@ const siteSchema = new Schema(
             type: String,
             required: true,
             match: /^[0-9]{6}$/
-        }
+        },
+        members: [memberSchema],
     },
     { _id: true }
 );
+
+
 
 const customerProfileSchema = new Schema(
     {
