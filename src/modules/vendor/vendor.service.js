@@ -1,9 +1,8 @@
-import Vendor from "./vendor.model.js";
-import User from "../user/user.model.js";
-import Role from "../role/role.model.js";
+import * as vendorRepo from "./vendor.repository.js";
 import ApiError from "../../utils/ApiError.js";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import * as emailService from "../../services/email.service.js";
 
 export const registerVendor = async (vendorData) => {
     const { businessDetails, ownerDetails, bankDetails, warehouseDetails, productCategories } = vendorData;
@@ -12,13 +11,11 @@ export const registerVendor = async (vendorData) => {
     const { email, mobile, fullName } = ownerDetails;
 
     // Check if user exists
-    const existingUser = await User.findOne({
-        $or: [{ email }, { mobile }]
-    });
+    const existingUser = await vendorRepo.findUserByEmailOrPhone(email, mobile);
     if (existingUser) throw new ApiError(400, "User already exists with this email or phone");
 
     // Get Vendor Owner Role
-    const role = await Role.findOne({ name: "VENDOR_OWNER" });
+    const role = await vendorRepo.findRoleByName("VENDOR_OWNER");
     if (!role) throw new ApiError(500, "Vendor Owner role not found");
 
     // Auto-generate secure password
@@ -28,7 +25,7 @@ export const registerVendor = async (vendorData) => {
     const hashedPassword = await bcrypt.hash(generatedPassword, 10);
 
     // Create User (Owner)
-    const owner = await User.create({
+    const owner = await vendorRepo.createUser({
         fullName: fullName || "Vendor Owner",
         email: email,
         mobile: mobile,
@@ -38,7 +35,7 @@ export const registerVendor = async (vendorData) => {
     });
 
     // Create Vendor Profile
-    const vendor = await Vendor.create({
+    const vendor = await vendorRepo.createVendor({
         ownerId: owner._id,
         businessDetails,
         ownerDetails,
@@ -57,14 +54,14 @@ export const registerVendor = async (vendorData) => {
         }
     });
 
-    // TODO: Actually integrate Mailer/SMS service here
-    console.log(`[MOCK MAILER]: Welcome ${email}! Your Oribrix Host login password is: ${generatedPassword}`);
+    // Use Nodemailer to send actual credential email
+    await emailService.sendVendorWelcomeEmail(email, generatedPassword);
 
     return { owner, vendor };
 };
 
 export const updateKYCDocuments = async (vendorId, files) => {
-    const vendor = await Vendor.findById(vendorId);
+    const vendor = await vendorRepo.findVendorById(vendorId);
     if (!vendor) throw new ApiError(404, "Vendor not found");
 
     if (files.gstCert) vendor.kycDocuments.gstCert = { fileUrl: files.gstCert[0].path, status: "RECEIVED" };
@@ -76,10 +73,10 @@ export const updateKYCDocuments = async (vendorId, files) => {
     if (files.oribrixSellerAgreement) vendor.kycDocuments.oribrixSellerAgreement = { fileUrl: files.oribrixSellerAgreement[0].path, status: "RECEIVED" };
     if (files.iso9001) vendor.kycDocuments.iso9001 = { fileUrl: files.iso9001[0].path, status: "RECEIVED" };
 
-    await vendor.save();
+    await vendorRepo.saveVendor(vendor);
     return vendor;
 };
 
 export const getVendorProfile = async (userId) => {
-    return await Vendor.findOne({ ownerId: userId }).populate("ownerId", "fullName email mobile");
+    return await vendorRepo.findVendorByOwnerId(userId);
 };

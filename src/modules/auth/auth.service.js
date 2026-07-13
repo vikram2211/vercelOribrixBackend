@@ -1,9 +1,11 @@
 import bcrypt from "bcryptjs";
 import User from "../user/user.model.js";
 import CustomerProfile from "../customerProfile/customerProfile.model.js";
+import Vendor from "../vendor/vendor.model.js";
 import * as authRepository from "./auth.repository.js";
 import { generateAccessToken, generateRefreshToken } from "../../utils/jwt.js";
 import { sendOTP } from "../../services/sms.service.js";
+import * as emailService from "../../services/email.service.js";
 import ApiError from "../../utils/ApiError.js";
 
 export const registerCustomer = async (userData) => {
@@ -88,9 +90,17 @@ export const verifyOTP = async (identifier, otp) => {
     user.otpExpiry = undefined;
     await user.save();
 
-    // Check if customer has already completed onboarding
-    const profile = await CustomerProfile.findOne({ userId: user._id });
-    const onboardingComplete = profile ? profile.onboardingComplete : false;
+    // Check role-specific profiles
+    let onboardingComplete = false;
+    let kycStatus = null;
+
+    if (user.role && user.role.name === "CUSTOMER") {
+        const profile = await CustomerProfile.findOne({ userId: user._id });
+        onboardingComplete = profile ? profile.onboardingComplete : false;
+    } else if (user.role && user.role.name === "VENDOR_OWNER") {
+        const vendorProfile = await Vendor.findOne({ ownerId: user._id });
+        kycStatus = vendorProfile ? vendorProfile.status : null;
+    }
 
     // Create session & tokens
     const tokens = await createSessionAndTokens(user);
@@ -101,7 +111,8 @@ export const verifyOTP = async (identifier, otp) => {
             id: user._id,
             fullName: user.fullName,
             role: user.role.name,
-            onboardingComplete
+            ...(user.role.name === "CUSTOMER" && { onboardingComplete }),
+            ...(user.role.name === "VENDOR_OWNER" && { kycStatus })
         },
         ...tokens
     };
@@ -120,30 +131,25 @@ export const loginWithPassword = async (identifier, password) => {
         throw new ApiError(401, "Invalid credentials");
     }
 
-    if (!user.isVerified) {
-        // Resend OTP if not verified
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        user.otp = otp;
-        user.otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
-        await user.save();
-        await sendOTP(user.mobile, otp);
+    // Password is correct, now initiate 2-Factor Authentication (OTP)
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    user.otp = otp;
+    user.otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+    await user.save();
 
-        return {
-            status: "UNVERIFIED",
-            message: "Account not verified. OTP sent to mobile."
-        };
+    // Vendor APIs: Use Nodemailer exclusively for VENDOR_OWNER OTPs
+    if (user.role && user.role.name === "VENDOR_OWNER") {
+        await emailService.sendVendorOTPEmail(user.email, otp);
+    } else {
+        // Leave everything else mapping to SMS
+        await sendOTP(user.mobile, otp);
     }
 
-    const tokens = await createSessionAndTokens(user);
-
     return {
-        message: "Login successful",
-        user: {
-            id: user._id,
-            fullName: user.fullName,
-            role: user.role.name
-        },
-        ...tokens
+        status: "OTP_SENT",
+        message: (user.role && user.role.name === "VENDOR_OWNER")
+            ? "Password verified. OTP sent to your registered email."
+            : "Password verified. OTP sent to your registered mobile."
     };
 };
 

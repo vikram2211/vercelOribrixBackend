@@ -1,3 +1,4 @@
+import ApiError from "../../utils/ApiError.js";
 import { displayProfile_repository } from "./customerProfile.repository.js";
 
 export const displayProfile_Services = async (userID) => {

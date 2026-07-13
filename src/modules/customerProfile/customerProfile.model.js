@@ -2,28 +2,6 @@ import mongoose from "mongoose";
 
 const { Schema, model } = mongoose;
 
-// Sub-schema for each construction site
-const siteSchema = new Schema(
-    {
-        siteName: {
-            type: String,
-            required: true,
-            trim: true
-        },
-        siteAddress: {
-            type: String,
-            required: true,
-            trim: true
-        },
-        pincode: {
-            type: String,
-            required: true,
-            match: /^[0-9]{6}$/
-        }
-    },
-    { _id: true }
-);
-
 const customerProfileSchema = new Schema(
     {
         // Links back to the User (auth identity)
@@ -54,7 +32,14 @@ const customerProfileSchema = new Schema(
         },
 
         // Multiple construction sites
-        sites: [siteSchema],
+        sites: {
+            type: Schema.Types.ObjectId,
+            ref: "Site"
+        },
+        address: {
+            type: Schema.Types.ObjectId,
+            ref: "Address"
+        },
 
         // Team invite — single mobile or email input
         teamInvites: {

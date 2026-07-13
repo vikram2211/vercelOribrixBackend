@@ -29,10 +29,7 @@ export const getStatus = async (req, res, next) => {
         const vendor = await vendorService.getVendorProfile(userId);
         if (!vendor) throw new ApiError(404, "Vendor profile not found");
 
-        return sendResponse(res, 200, "Vendor status retrieved", {
-            status: vendor.status,
-            checklist: vendor.kycDocuments
-        });
+        return sendResponse(res, 200, "Vendor status retrieved", vendor);
     } catch (error) {
         next(error);
     }
