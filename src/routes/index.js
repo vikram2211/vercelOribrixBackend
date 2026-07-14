@@ -16,7 +16,7 @@ router.use("/vendor", vendorRoutes);
 router.use("/customer", customerRouter);
 router.use("/product", categoryRoutes);
 router.use("/kyc", kycRoutes);
-router.use("/coupon", couponRouter);
+router.use("/coupon", couponRouter)
 // Catalog Routes
 router.use("/v1/sub-category", subCategoryRoutes);
 router.use("/product", productRoutes);
