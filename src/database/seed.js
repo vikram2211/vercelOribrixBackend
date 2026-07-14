@@ -23,7 +23,7 @@ export const seedRoles = async () => {
 };
 
 export const seedAdmin = async () => {
-    const adminRole = await Role.findOne({ name: "SUPER_ADMIN" });
+    const adminRole = await Role.findOne({ name: "ADMIN" });
     if (!adminRole) return;
 
     const adminEmail = "admin@oribrix.com";

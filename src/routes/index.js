@@ -7,13 +7,16 @@ import customerRouter from "../modules/customerProfile/customerProfile.routes.js
 import categoryRoutes from "../modules/category/category.routes.js";
 import subCategoryRoutes from "../modules/subCategory/subCategory.routes.js";
 import productRoutes from "../modules/product/product.routes.js";
+import kycRoutes from "../modules/kyc/kyc.routes.js";
+import couponRouter from "../modules/coupon/coupon.routes.js";
 
 // Import routes from modules here as you build them
 router.use("/auth", authRoutes);
 router.use("/vendor", vendorRoutes);
 router.use("/customer", customerRouter);
 router.use("/product", categoryRoutes);
-
+router.use("/kyc", kycRoutes);
+router.use("/coupon", couponRouter);
 // Catalog Routes
 router.use("/v1/sub-category", subCategoryRoutes);
 router.use("/product", productRoutes);

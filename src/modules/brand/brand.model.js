@@ -7,23 +7,20 @@ const brandSchema = new Schema(
         name: {
             type: String,
             required: true,
-            trim: true
+            unique: true
         },
+
+
         slug: {
             type: String,
-            required: true,
             unique: true,
-            trim: true
+            trim: true,
         },
+
         logo: {
-            type: String
+            type: String,
         },
-        description: {
-            type: String
-        },
-        website: {
-            type: String
-        },
+
         isActive: {
             type: Boolean,
             default: true
