@@ -9,13 +9,13 @@ import {
 const router = express.Router();
 
 router.get(
-    "/v1/display-kyc",
+    "/v1/display-all",
     authenticate,
     authorize("ADMIN"),
     displayAllKYC_Vender
 );
 router.get(
-    "/v1/display-kyc/:id",
+    "/v1/display/:id",
     authenticate,
     authorize("ADMIN"),
     displayKYC_Vender_fullDetails
