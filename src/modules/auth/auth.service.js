@@ -140,6 +140,8 @@ export const loginWithPassword = async (identifier, password) => {
     // Vendor APIs: Use Nodemailer exclusively for VENDOR_OWNER OTPs
     if (user.role && user.role.name === "VENDOR_OWNER") {
         await emailService.sendVendorOTPEmail(user.email, otp);
+    } else if (user.role && user.role.name === "ADMIN") {
+        await emailService.sendGenericOTPEmail(user.email, otp);
     } else {
         // Leave everything else mapping to SMS
         await sendOTP(user.mobile, otp);
@@ -147,7 +149,7 @@ export const loginWithPassword = async (identifier, password) => {
 
     return {
         status: "OTP_SENT",
-        message: (user.role && user.role.name === "VENDOR_OWNER")
+        message: (user.role && (user.role.name === "VENDOR_OWNER" || user.role.name === "ADMIN"))
             ? "Password verified. OTP sent to your registered email."
             : "Password verified. OTP sent to your registered mobile."
     };

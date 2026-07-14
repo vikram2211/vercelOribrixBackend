@@ -56,3 +56,23 @@ export const sendVendorOTPEmail = async (email, otp) => {
         console.error("Error sending OTP email:", error);
     }
 };
+
+export const sendGenericOTPEmail = async (email, otp) => {
+    try {
+        const mailOptions = {
+            from: `"OriBrix Security" <${process.env.SMTP_USER}>`,
+            to: email,
+            subject: "Your OriBrix Login OTP",
+            html: `
+                <h3>Login Verification</h3>
+                <p>Your One-Time Password (OTP) is: <h2>${otp}</h2></p>
+                <p>This OTP is valid for 10 minutes. Please do not share it with anyone.</p>
+            `,
+        };
+
+        const info = await transporter.sendMail(mailOptions);
+        console.log("Admin OTP email sent: %s", info.messageId);
+    } catch (error) {
+        console.error("Error sending generic OTP email:", error);
+    }
+};
