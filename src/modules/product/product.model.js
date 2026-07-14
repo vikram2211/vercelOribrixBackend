@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 // Import schemas to explicitly register them in Mongoose before they are populated
 import "../brand/brand.model.js";
 import "../subCategory/subCategory.model.js";
+import "../attribute/attribute.model.js";
 import "../attributeValue/attributeValue.model.js";
 
 const { Schema, model } = mongoose;

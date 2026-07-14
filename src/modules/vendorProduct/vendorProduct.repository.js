@@ -27,6 +27,26 @@ export const getDistinctProductIds = async (query = {}) => {
     return await VendorProduct.distinct("productId", query);
 };
 
+// Deep populated single listing fetch for the Product Detail Page (PDP)
+export const findListingById = async (id) => {
+    return await VendorProduct.findById(id)
+        .populate({
+            path: 'productId',
+            select: 'name description thumbnail images hsnCode gstPercentage categoryId subCategoryId brandId attributeValueIds',
+            populate: [
+                { path: 'brandId', select: 'name logo' },
+                { path: 'categoryId', select: 'name' },
+                { path: 'subCategoryId', select: 'name' },
+                {
+                    path: 'attributeValueIds',
+                    populate: { path: 'attributeId', select: 'name' }
+                }
+            ]
+        })
+        .populate('warehouseId', 'name address operatingHours')
+        .populate('vendorId', 'businessDetails status');
+};
+
 // Powerful search for Buyers OR Vendors to filter by Master Product traits
 export const findAllListings = async (query = {}) => {
     return await VendorProduct.find(query)

@@ -19,3 +19,27 @@ export const createProduct = async (req, res, next) => {
         next(error);
     }
 };
+
+export const updateProduct = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+
+        // Start with any non-file fields sent in the form-data body
+        const updateData = { ...req.body };
+
+        // If a single thumbnail was uploaded via field name 'thumbnail'
+        if (req.files?.thumbnail?.[0]) {
+            updateData.thumbnail = req.files.thumbnail[0].path;
+        }
+
+        // If multiple product images were uploaded via field name 'images'
+        if (req.files?.images?.length > 0) {
+            updateData.images = req.files.images.map(f => f.path);
+        }
+
+        const updatedProduct = await productService.editProduct(id, updateData);
+        return sendResponse(res, 200, "Product updated successfully", updatedProduct);
+    } catch (error) {
+        next(error);
+    }
+};

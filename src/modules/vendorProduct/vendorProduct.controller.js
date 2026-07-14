@@ -37,6 +37,19 @@ export const searchListings = async (req, res, next) => {
     }
 };
 
+export const getListingDetails = async (req, res, next) => {
+    try {
+        const { listingId } = req.query;
+        if (!listingId) {
+            return res.status(400).json({ success: false, message: "listingId is required as a query parameter" });
+        }
+        const result = await vendorProductService.getListingDetails(listingId);
+        return sendResponse(res, 200, "Listing details retrieved successfully", result);
+    } catch (error) {
+        next(error);
+    }
+};
+
 export const updateListing = async (req, res, next) => {
     try {
         const vendorId = getVendorId(req);

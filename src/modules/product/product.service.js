@@ -17,3 +17,11 @@ export const addProduct = async (productData) => {
 
     return await productRepo.createProduct(productData);
 };
+
+export const editProduct = async (id, updateData) => {
+    const product = await productRepo.updateProduct(id, updateData);
+    if (!product) {
+        throw new ApiError(404, "Product not found");
+    }
+    return product;
+};

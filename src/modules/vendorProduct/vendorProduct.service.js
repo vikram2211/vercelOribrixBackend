@@ -31,6 +31,65 @@ export const getVendorListings = async (vendorId) => {
     return await vendorProductRepo.findListingsByVendor(vendorId);
 };
 
+export const getListingDetails = async (listingId) => {
+    const listing = await vendorProductRepo.findListingById(listingId);
+    if (!listing) {
+        throw new ApiError(404, "Product listing not found");
+    }
+
+    const p = listing.productId;
+    const v = listing.vendorId;
+    const w = listing.warehouseId;
+
+    // Map attributeValueIds -> [{name: "Grade", value: "800x800"}, ...]
+    const attributes = (p?.attributeValueIds || []).map(av => ({
+        name: av.attributeId?.name || "Attribute",
+        value: av.value
+    }));
+
+    return {
+        listingId: listing._id,
+
+        product: {
+            name: p?.name,
+            description: p?.description,
+            thumbnail: p?.thumbnail,
+            images: p?.images || [],
+            brand: p?.brandId?.name,
+            category: p?.categoryId?.name,
+            subCategory: p?.subCategoryId?.name,
+            attributes
+        },
+
+        pricing: {
+            mrp: listing.mrp,
+            sellingPrice: listing.sellingPrice,
+            discountPercentage: listing.mrp
+                ? Math.round(((listing.mrp - listing.sellingPrice) / listing.mrp) * 100)
+                : 0
+        },
+
+        inventory: {
+            stockQuantity: listing.stockQuantity,
+            minOrderQuantity: listing.minOrderQuantity,
+            status: listing.stockQuantity > 0 ? "IN_STOCK" : "OUT_OF_STOCK"
+        },
+
+        seller: {
+            vendorId: v?._id,
+            name: v?.businessDetails?.legalBusinessName,
+            isKycVerified: v?.status === "APPROVED"
+        },
+
+        warehouse: {
+            warehouseId: w?._id,
+            name: w?.name,
+            address: w?.address,
+            operatingHours: w?.operatingHours
+        }
+    };
+};
+
 export const searchVendorProducts = async (filters, { page, limit, skip }) => {
     const query = { status: "ACTIVE" };
 

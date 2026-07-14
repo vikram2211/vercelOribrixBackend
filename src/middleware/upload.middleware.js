@@ -115,3 +115,34 @@ export const uploadCoupon = multer({
     limits: { fileSize: 5 * 1024 * 1024 },
     fileFilter: imageFilter,
 });
+
+const productStorage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: {
+        folder: "oribrix/products",
+        allowed_formats: ["jpeg", "jpg", "png", "jfif"],
+        format: async () => "jpg", // Always convert to jpg on Cloudinary
+        public_id: (req, file) => {
+            const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+            return `product-${uniqueSuffix}`;
+        },
+    },
+});
+
+const productImageFilter = (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|jfif/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = /jpeg|jpg|png|jfif/.test(file.mimetype);
+
+    if (extname || mimetype) { // use OR so jfif with image/jpeg mime still passes
+        return cb(null, true);
+    } else {
+        cb(new Error("Only images (jpeg, jpg, png, jfif) are allowed!"));
+    }
+};
+
+export const uploadProduct = multer({
+    storage: productStorage,
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB per image
+    fileFilter: productImageFilter,
+});

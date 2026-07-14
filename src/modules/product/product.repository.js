@@ -22,3 +22,11 @@ export const getAllProducts = async (filters = {}) => {
 export const createProduct = async (data) => {
     return await Product.create(data);
 };
+
+export const updateProduct = async (id, data) => {
+    return await Product.findByIdAndUpdate(
+        id,
+        { $set: data },
+        { new: true, runValidators: true }
+    );
+};
