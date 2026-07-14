@@ -31,7 +31,7 @@ export const getVendorListings = async (vendorId) => {
     return await vendorProductRepo.findListingsByVendor(vendorId);
 };
 
-export const searchVendorProducts = async (filters) => {
+export const searchVendorProducts = async (filters, { page, limit, skip }) => {
     const query = { status: "ACTIVE" };
 
     // Support filtering purely by broad Category
@@ -49,6 +49,16 @@ export const searchVendorProducts = async (filters) => {
     if (filters.vendorId) {
         query.vendorId = filters.vendorId;
     }
+
+    // Determine exactly how many unique Master Products currently have active listings matching this query
+    const distinctProductIds = await vendorProductRepo.getDistinctProductIds(query);
+    const total = distinctProductIds.length;
+
+    // Slice exactly the product IDs needed for this specific page
+    const paginatedProductIds = distinctProductIds.slice(skip, skip + limit);
+
+    // Override the query to ONLY fetch listings belonging to the sliced Master Products
+    query.productId = { $in: paginatedProductIds };
 
     const rawListings = await vendorProductRepo.findAllListings(query);
 
@@ -89,7 +99,15 @@ export const searchVendorProducts = async (filters) => {
         return acc;
     }, {}));
 
-    return groupedProducts;
+    return {
+        products: groupedProducts,
+        pagination: {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit) || 0
+        }
+    };
 };
 
 export const updateVendorListing = async (id, vendorId, updateData) => {

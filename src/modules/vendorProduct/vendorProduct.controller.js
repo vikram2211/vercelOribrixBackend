@@ -1,5 +1,6 @@
 import * as vendorProductService from "./vendorProduct.service.js";
 import { sendResponse } from "../../utils/response.js";
+import pagination from "../../utils/pagination.js";
 
 // We extract vendorId either from JWT req.user.vendorId OR req.body.vendorId for flexibility during testing
 const getVendorId = (req) => {
@@ -28,9 +29,9 @@ export const getListings = async (req, res, next) => {
 
 export const searchListings = async (req, res, next) => {
     try {
-        // e.g., ?subCategoryId=65abcd...
-        const listings = await vendorProductService.searchVendorProducts(req.query);
-        return sendResponse(res, 200, "Vendor products retrieved successfully", listings);
+        const { page, limit, skip } = pagination(req.query);
+        const result = await vendorProductService.searchVendorProducts(req.query, { page, limit, skip });
+        return sendResponse(res, 200, "Vendor products retrieved successfully", result);
     } catch (error) {
         next(error);
     }

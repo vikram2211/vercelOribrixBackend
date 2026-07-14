@@ -23,6 +23,10 @@ export const findListingByIdAndVendor = async (id, vendorId) => {
         .populate('warehouseId');
 };
 
+export const getDistinctProductIds = async (query = {}) => {
+    return await VendorProduct.distinct("productId", query);
+};
+
 // Powerful search for Buyers OR Vendors to filter by Master Product traits
 export const findAllListings = async (query = {}) => {
     return await VendorProduct.find(query)
