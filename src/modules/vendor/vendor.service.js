@@ -3,6 +3,7 @@ import ApiError from "../../utils/ApiError.js";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import * as emailService from "../../services/email.service.js";
+import * as warehouseService from "../warehouse/warehouse.service.js";
 
 export const registerVendor = async (vendorData) => {
     const { businessDetails, ownerDetails, bankDetails, warehouseDetails, productCategories } = vendorData;
@@ -40,7 +41,6 @@ export const registerVendor = async (vendorData) => {
         businessDetails,
         ownerDetails,
         bankDetails,
-        warehouseDetails,
         productCategories,
         kycDocuments: {
             gstCert: { status: "PENDING" },
@@ -56,6 +56,17 @@ export const registerVendor = async (vendorData) => {
 
     // Use Nodemailer to send actual credential email
     await emailService.sendVendorWelcomeEmail(email, generatedPassword);
+
+    // Create Initial Warehouse dynamically bridging to Multi-Warehouse architecture!
+    if (warehouseDetails && warehouseDetails.warehouseName) {
+        await warehouseService.addWarehouse(vendor._id, {
+            name: warehouseDetails.warehouseName,
+            capacity: warehouseDetails.storageCapacity,
+            address: warehouseDetails.address,
+            operatingHours: warehouseDetails.operatingHours,
+            isActive: true
+        });
+    }
 
     return { owner, vendor };
 };

@@ -12,6 +12,12 @@ import {
 
 const router = express.Router();
 
+
+router.get(
+  "/v1/public/categories",
+  displayProductCategories_app
+);
+
 // CUSTOMER ====
 // Get all categories for user Home Page
 router.get(

@@ -50,16 +50,6 @@ const vendorSchema = new Schema(
             accountType: { type: String, required: true }
         },
 
-        warehouseDetails: {
-            warehouseName: { type: String, required: true },
-            storageCapacity: { type: String, required: true },
-            latitude: { type: String },
-            longitude: { type: String },
-            operatingHours: { type: String },
-            vehicleAccess: { type: String },
-            address: { type: String, required: true }
-        },
-
         productCategories: [{
             type: Schema.Types.ObjectId,
             ref: "Category"
