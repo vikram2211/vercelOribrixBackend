@@ -6,11 +6,20 @@ const unitSchema = new Schema(
     {
         name: {
             type: String,
-            unique: true
+            required: true,
+            trim: true
         },
-
-        shortName: {
+        shortName: { // e.g., Kg, Ton, CFT
+            type: String,
+            required: true,
+            trim: true
+        },
+        type: {
             type: String
+        },
+        isDecimal: {
+            type: Boolean,
+            default: false
         }
     },
     {

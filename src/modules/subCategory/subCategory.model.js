@@ -2,8 +2,13 @@ import mongoose from "mongoose";
 
 const { Schema, model } = mongoose;
 
-const brandSchema = new Schema(
+const subCategorySchema = new Schema(
     {
+        categoryId: {
+            type: Schema.Types.ObjectId,
+            ref: "Category",
+            required: true
+        },
         name: {
             type: String,
             required: true,
@@ -15,14 +20,15 @@ const brandSchema = new Schema(
             unique: true,
             trim: true
         },
-        logo: {
+        image: {
             type: String
         },
         description: {
             type: String
         },
-        website: {
-            type: String
+        displayOrder: {
+            type: Number,
+            default: 0
         },
         isActive: {
             type: Boolean,
@@ -34,4 +40,4 @@ const brandSchema = new Schema(
     }
 );
 
-export default model("Brand", brandSchema);
+export default model("SubCategory", subCategorySchema);

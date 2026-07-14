@@ -1,0 +1,113 @@
+import * as vendorProductRepo from "./vendorProduct.repository.js";
+import Product from "../product/product.model.js";
+import ApiError from "../../utils/ApiError.js";
+
+export const addVendorListing = async (vendorId, listingData) => {
+    if (!vendorId || !listingData.productId) {
+        throw new ApiError(400, "Vendor ID and Product ID are required");
+    }
+
+    if (listingData.sellingPrice > listingData.mrp) {
+        throw new ApiError(400, "Selling price cannot be greater than MRP");
+    }
+
+    try {
+        const newListing = await vendorProductRepo.createListing({
+            ...listingData,
+            vendorId
+        });
+
+        // Return populated version explicitly safely
+        return newListing;
+    } catch (error) {
+        if (error.code === 11000) {
+            throw new ApiError(400, "You have already listed this product. Please update your existing listing.");
+        }
+        throw error;
+    }
+};
+
+export const getVendorListings = async (vendorId) => {
+    return await vendorProductRepo.findListingsByVendor(vendorId);
+};
+
+export const searchVendorProducts = async (filters) => {
+    const query = { status: "ACTIVE" };
+
+    // Support filtering purely by broad Category
+    if (filters.categoryId) {
+        const matchingProducts = await Product.find({ categoryId: filters.categoryId }).select('_id');
+        query.productId = { $in: matchingProducts.map(p => p._id) };
+    }
+
+    // Support highly specific Sub-Category filtering (Overrides Category)
+    if (filters.subCategoryId) {
+        const matchingProducts = await Product.find({ subCategoryId: filters.subCategoryId }).select('_id');
+        query.productId = { $in: matchingProducts.map(p => p._id) };
+    }
+
+    if (filters.vendorId) {
+        query.vendorId = filters.vendorId;
+    }
+
+    const rawListings = await vendorProductRepo.findAllListings(query);
+
+    // Group the raw data by Master Product for a clean UI render
+    const groupedProducts = Object.values(rawListings.reduce((acc, listing) => {
+        // Safety check to ensure broken references are ignored
+        if (!listing.productId) return acc;
+
+        const masterId = listing.productId._id.toString();
+
+        // 1. Structure the Master Product Header
+        if (!acc[masterId]) {
+            acc[masterId] = {
+                productId: masterId,
+                name: listing.productId.name,
+                slug: listing.productId.slug,
+                thumbnail: listing.productId.thumbnail,
+                brandName: listing.productId.brandId?.name,
+                categoryName: listing.productId.categoryId?.name,
+                subCategoryName: listing.productId.subCategoryId?.name,
+                warehouses: []
+            };
+        }
+
+        // 2. Push the highly specific vendor/warehouse listing details inside
+        acc[masterId].warehouses.push({
+            listingId: listing._id,
+            vendorId: listing.vendorId?._id,
+            vendorName: listing.vendorId?.businessDetails?.legalBusinessName || "Verified Vendor",
+            warehouseName: listing.warehouseId?.name || "Local Warehouse",
+            warehouseAddress: listing.warehouseId?.address || "",
+            mrp: listing.mrp,
+            sellingPrice: listing.sellingPrice,
+            stockQuantity: listing.stockQuantity,
+            minOrderQuantity: listing.minOrderQuantity
+        });
+
+        return acc;
+    }, {}));
+
+    return groupedProducts;
+};
+
+export const updateVendorListing = async (id, vendorId, updateData) => {
+    if (updateData.sellingPrice && updateData.mrp && updateData.sellingPrice > updateData.mrp) {
+        throw new ApiError(400, "Selling price cannot be greater than MRP");
+    }
+
+    const listing = await vendorProductRepo.updateListing(id, vendorId, updateData);
+    if (!listing) {
+        throw new ApiError(404, "Product listing not found in your catalog");
+    }
+    return listing;
+};
+
+export const deleteVendorListing = async (id, vendorId) => {
+    const listing = await vendorProductRepo.removeListing(id, vendorId);
+    if (!listing) {
+        throw new ApiError(404, "Product listing not found");
+    }
+    return true;
+};
