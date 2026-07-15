@@ -12,10 +12,30 @@ export const displaySiteFullDetails_repository = async (userId, siteId) => {
     return site;
 };
 
-export const displayAllSite_repository = async (userId) => {
-    const sites = await siteModel.find({ userId, ...notDeleted });
+export const displayAllSite_repository = async ({
+    userId,
+    skip = 0,
+    limit = 10,
+    search = "",
+}) => {
+    const filter = { userId, ...notDeleted };
 
-    return sites;
+    if (search) {
+        const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const regex = { $regex: escaped, $options: "i" };
+        filter.$or = [{ siteName: regex }, { pinCode: regex }];
+    }
+
+    const [sites, total] = await Promise.all([
+        siteModel
+            .find(filter)
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit),
+        siteModel.countDocuments(filter),
+    ]);
+
+    return { sites, total };
 };
 
 export const addSite_Repository = async (userId, site) => {

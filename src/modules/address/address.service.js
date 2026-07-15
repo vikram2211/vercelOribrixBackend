@@ -34,15 +34,29 @@ export const DisplayAddressFullDetails_Services = async (userId, addressId) => {
     return addressFullDetails ? formatAddress(addressFullDetails) : null;
 };
 
-export const DisplayAllAddressDetails_Services = async (userID) => {
-    const displayAllAddress = await displayAllAddress_repository(userID);
+export const DisplayAllAddressDetails_Services = async ({
+    userId,
+    page,
+    limit,
+    skip,
+    search,
+}) => {
+    const { addresses, total } = await displayAllAddress_repository({
+        userId,
+        skip,
+        limit,
+        search: search?.trim() || "",
+    });
 
-    if (!displayAllAddress?.length) {
-        return [];
-    }
-
-    console.log(displayAllAddress, "displayAllAddress");
-    return displayAllAddress.map(formatAddress);
+    return {
+        addresses: addresses.map(formatAddress),
+        pagination: {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit) || 0,
+        },
+    };
 };
 
 export const addAddress_Services = async (userId, data) => {

@@ -1,5 +1,6 @@
 import asyncHandler from "../../utils/asyncHandler.js";
 import { sendResponse } from "../../utils/response.js";
+import pagination from "../../utils/pagination.js";
 import { addSite_Services, deleteSite_Services, DisplayAllSiteDetails_Services, DisplaySiteFullDetails_Services, displaySiteName_Services, editSite_Services } from "./site.service.js";
 
 export const displaySites = asyncHandler(async (req, res) => {
@@ -8,15 +9,23 @@ export const displaySites = asyncHandler(async (req, res) => {
     let siteData;
 
     if (req.query.siteId) {
-        console.log(req.query.siteId, "====")
         siteData = await DisplaySiteFullDetails_Services(
             userId,
             req.query.siteId
         );
     } else {
-        siteData = await DisplayAllSiteDetails_Services(userId);
+        const { page, limit, skip } = pagination(req.query);
+        const search = req.query.search || req.query.siteName || req.query.pincode || "";
+
+        siteData = await DisplayAllSiteDetails_Services({
+            userId,
+            page,
+            limit,
+            skip,
+            search,
+        });
     }
-    console.log(siteData, "siteData==")
+
     return sendResponse(
         res,
         200,
@@ -48,10 +57,9 @@ export const deleteSites = asyncHandler(async (req, res) => {
     return sendResponse(res, 200, "site deleted successfully", siteDetails);
 })
 
-export const displaySiteName = asyncHandler(async (req, res) =>{
+export const displaySiteName = asyncHandler(async (req, res) => {
     const userID = req.user.userId;
-    console.log(userID, "userID");
-    const siteNames = await displaySiteName_Services(userID, id);
+    const siteNames = await displaySiteName_Services(userID);
     return sendResponse(res, 200, "Display site name successfully", siteNames);
-})
+});
 

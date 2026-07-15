@@ -1,4 +1,5 @@
 import addressModel from "./address.model.js";
+import siteModel from "../site/site.model.js";
 
 const notDeleted = { isDelete: { $ne: true } };
 
@@ -17,12 +18,57 @@ export const displayAddressFullDetails_repository = async (
     return address;
 };
 
-export const displayAllAddress_repository = async (userId) => {
-    const addresses = await addressModel
-        .find({ userId, ...notDeleted })
-        .populate("siteId", "siteName");
+export const displayAllAddress_repository = async ({
+    userId,
+    skip = 0,
+    limit = 10,
+    search = "",
+}) => {
+    const filter = { userId, ...notDeleted };
 
-    return addresses;
+    if (search) {
+        const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const regex = { $regex: escaped, $options: "i" };
+
+        const matchingSites = await siteModel.find(
+            { siteName: regex, ...notDeleted },
+            { _id: 1 }
+        );
+        const siteIds = matchingSites.map((s) => s._id);
+
+        filter.$or = [
+            { fullName: regex },
+            { mobileNo: regex },
+            { landmark: regex },
+            { city: regex },
+            { addressType: regex },
+            {
+                $expr: {
+                    $regexMatch: {
+                        input: { $toString: { $ifNull: ["$pinCode", ""] } },
+                        regex: escaped,
+                        options: "i",
+                    },
+                },
+            },
+        ];
+
+        if (siteIds.length) {
+            filter.$or.push({ siteId: { $in: siteIds } });
+        }
+    }
+
+    const [addresses, total] = await Promise.all([
+        addressModel
+            .find(filter)
+            .populate("siteId", "siteName")
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit),
+        addressModel.countDocuments(filter),
+    ]);
+
+    return { addresses, total };
 };
 
 export const countActiveAddresses_Repository = async (userId) => {

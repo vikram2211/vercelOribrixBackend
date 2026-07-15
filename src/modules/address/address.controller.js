@@ -1,29 +1,38 @@
 import asyncHandler from "../../utils/asyncHandler.js";
 import { sendResponse } from "../../utils/response.js";
+import pagination from "../../utils/pagination.js";
 import { addAddress_Services, deleteAddress_Services, DisplayAddressFullDetails_Services, DisplayAllAddressDetails_Services, editAddress_Services } from "./address.service.js";
 
-export const displayAddress = asyncHandler(async (req, res) =>{
+export const displayAddress = asyncHandler(async (req, res) => {
     const userId = req.user.userId;
 
     let addressData;
 
     if (req.query.addressId) {
-        console.log(req.query.addressId,"====")
         addressData = await DisplayAddressFullDetails_Services(
             userId,
             req.query.addressId
         );
     } else {
-        addressData = await DisplayAllAddressDetails_Services(userId);
+        const { page, limit, skip } = pagination(req.query);
+        const search = req.query.search || "";
+
+        addressData = await DisplayAllAddressDetails_Services({
+            userId,
+            page,
+            limit,
+            skip,
+            search,
+        });
     }
-console.log(addressData,"addressData==")
+
     return sendResponse(
         res,
         200,
         "address details fetched successfully",
         addressData
     );
-})
+});
 export const addAddress = asyncHandler(async (req, res) =>{
     const userID = req.user.userId;
 const data = req.body;

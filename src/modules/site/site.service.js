@@ -3,25 +3,42 @@ import ApiError from "../../utils/ApiError.js";
 
 export const DisplaySiteFullDetails_Services = async (userId, siteId) => {
     console.log(userId, siteId, "userId, siteId")
-    const sitesFullDetails = displaySiteFullDetails_repository(userId, siteId);
+    const sitesFullDetails = await displaySiteFullDetails_repository(userId, siteId);
     console.log(sitesFullDetails, "sitesFullDetails");
     return sitesFullDetails;
 }
 
-export const DisplayAllSiteDetails_Services = async (userID) => {
-    const displayAllSite = await displayAllSite_repository(userID);
+export const DisplayAllSiteDetails_Services = async ({
+    userId,
+    page,
+    limit,
+    skip,
+    search,
+}) => {
+    const { sites, total } = await displayAllSite_repository({
+        userId,
+        skip,
+        limit,
+        search: search?.trim() || "",
+    });
 
-    if (!displayAllSite) {
-        return null;
-    }
-
-    return displayAllSite.sites.map((site) => ({
+    const formatted = sites.map((site) => ({
         siteId: site._id,
         siteName: site.siteName,
         siteAddress: site.siteAddress,
-        pincode: site.pincode,
-        members: site.members.length,
+        pincode: site.pinCode,
+        members: site.members?.length ?? 0,
     }));
+
+    return {
+        sites: formatted,
+        pagination: {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit) || 0,
+        },
+    };
 };
 
 
@@ -57,6 +74,6 @@ export const deleteSite_Services = async (siteId) => {
 }
 
 export const displaySiteName_Services = async (userID) => {
-    const siteName = await displaySiteName_Repository(userId);
+    const siteName = await displaySiteName_Repository(userID);
     return siteName;
-}
+};
