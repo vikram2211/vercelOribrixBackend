@@ -49,6 +49,7 @@ export const getListingDetails = async (listingId) => {
 
     return {
         listingId: listing._id,
+        cartCount: 1,
 
         product: {
             name: p?.name,

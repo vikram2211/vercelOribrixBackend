@@ -54,8 +54,10 @@ export const registerVendor = async (vendorData) => {
         }
     });
 
-    // Use Nodemailer to send actual credential email
-    await emailService.sendVendorWelcomeEmail(email, generatedPassword);
+    // Use Nodemailer to send actual credential email (fire-and-forget to avoid blocking response)
+    emailService.sendVendorWelcomeEmail(email, generatedPassword).catch(err => {
+        console.error('Welcome email failed to send:', err);
+    });
 
     // Create Initial Warehouse dynamically bridging to Multi-Warehouse architecture!
     if (warehouseDetails && warehouseDetails.warehouseName) {
