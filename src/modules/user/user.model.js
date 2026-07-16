@@ -15,6 +15,28 @@ const userSchema = new Schema(
             default: ""
         },
 
+        myReferralCode: {
+            type: String,
+            unique: true,
+            sparse: true
+        },
+
+        referredBy: {
+            type: Schema.Types.ObjectId,
+            ref: "User"
+        },
+
+        walletBalance: {
+            type: Number,
+            default: 0
+        },
+
+        referralStats: {
+            totalSignups: { type: Number, default: 0 },
+            successfulReferrals: { type: Number, default: 0 },
+            totalEarned: { type: Number, default: 0 }
+        },
+
         email: {
             type: String,
             unique: true,

@@ -9,7 +9,7 @@ import * as emailService from "../../services/email.service.js";
 import ApiError from "../../utils/ApiError.js";
 
 export const registerCustomer = async (userData) => {
-    const { mobile, email, password, fullName, pincode } = userData;
+    const { mobile, email, password, fullName, pincode, referralCode, photo } = userData;
 
     // Check if user exists by mobile
     let existingUser = await authRepository.findUserByMobile(mobile);
@@ -41,6 +41,16 @@ export const registerCustomer = async (userData) => {
 
     let userToUpdate = existingUser || existingEmailUser;
 
+    let referredByObj = null;
+    if (referralCode) {
+        const referrer = await User.findOne({ myReferralCode: referralCode });
+        if (referrer) {
+            referredByObj = referrer._id;
+        }
+    }
+
+    const myReferralCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+
     if (userToUpdate) {
         // Overwrite unverified record
         userToUpdate.fullName = fullName || userToUpdate.fullName;
@@ -51,6 +61,10 @@ export const registerCustomer = async (userData) => {
         userToUpdate.otp = otp;
         userToUpdate.otpExpiry = otpExpiry;
         userToUpdate.role = role._id;
+        if (photo) userToUpdate.photo = photo;
+        if (!userToUpdate.myReferralCode) userToUpdate.myReferralCode = myReferralCode;
+        if (referredByObj && !userToUpdate.referredBy) userToUpdate.referredBy = referredByObj;
+
         await userToUpdate.save();
     } else {
         // Create new record
@@ -60,7 +74,9 @@ export const registerCustomer = async (userData) => {
             role: role._id,
             otp,
             otpExpiry,
-            isVerified: false
+            isVerified: false,
+            myReferralCode,
+            referredBy: referredByObj
         });
     }
 
@@ -85,10 +101,17 @@ export const verifyOTP = async (identifier, otp) => {
         throw new ApiError(400, "Invalid or expired OTP");
     }
 
+    const wasUnverified = !user.isVerified;
     user.isVerified = true;
     user.otp = undefined;
     user.otpExpiry = undefined;
     await user.save();
+
+    if (wasUnverified && user.referredBy) {
+        await User.findByIdAndUpdate(user.referredBy, {
+            $inc: { "referralStats.totalSignups": 1 }
+        });
+    }
 
     // Check role-specific profiles
     let onboardingComplete = false;

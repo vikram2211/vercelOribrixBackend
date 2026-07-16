@@ -5,7 +5,8 @@ export const registerSchema = Joi.object({
     mobile: Joi.string().required().pattern(/^[0-9]{10}$/),
     email: Joi.string().email().optional(),
     password: Joi.string().required().min(6),
-    pincode: Joi.string().required().length(6)
+    pincode: Joi.string().required().length(6),
+    referralCode: Joi.string().optional()
 });
 
 export const loginSchema = Joi.object({

@@ -8,6 +8,11 @@ export const register = async (req, res, next) => {
         const { error, value } = registerSchema.validate(req.body);
         if (error) throw new ApiError(400, error.details[0].message);
 
+        // Add photo path if a file was uploaded
+        if (req.file) {
+            value.photo = req.file.path;
+        }
+
         const result = await authService.registerCustomer(value);
         return sendResponse(res, 201, result.message, { userId: result.userId });
     } catch (error) {

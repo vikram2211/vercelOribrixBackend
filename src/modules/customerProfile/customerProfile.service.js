@@ -13,6 +13,9 @@ const formatProfile = (user) => ({
     photo: user.photo || "",
     email: user.email || "",
     mobile: user.mobile || "",
+    myReferralCode: user.myReferralCode || "",
+    walletBalance: user.walletBalance || 0,
+    referralStats: user.referralStats || { totalSignups: 0, successfulReferrals: 0, totalEarned: 0 }
 });
 
 export const displayProfile_Services = async (userId) => {
