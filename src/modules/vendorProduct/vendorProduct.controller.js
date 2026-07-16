@@ -43,7 +43,8 @@ export const getListingDetails = async (req, res, next) => {
         if (!listingId) {
             return res.status(400).json({ success: false, message: "listingId is required as a query parameter" });
         }
-        const result = await vendorProductService.getListingDetails(listingId);
+        const userId = req.user.userId;
+        const result = await vendorProductService.getListingDetails(listingId, userId);
         return sendResponse(res, 200, "Listing details retrieved successfully", result);
     } catch (error) {
         next(error);

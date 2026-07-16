@@ -1,5 +1,6 @@
 import * as vendorProductRepo from "./vendorProduct.repository.js";
 import Product from "../product/product.model.js";
+import Cart from "../cart/cart.model.js";
 import ApiError from "../../utils/ApiError.js";
 
 export const addVendorListing = async (vendorId, listingData) => {
@@ -31,7 +32,7 @@ export const getVendorListings = async (vendorId) => {
     return await vendorProductRepo.findListingsByVendor(vendorId);
 };
 
-export const getListingDetails = async (listingId) => {
+export const getListingDetails = async (listingId, userId) => {
     const listing = await vendorProductRepo.findListingById(listingId);
     if (!listing) {
         throw new ApiError(404, "Product listing not found");
@@ -41,15 +42,25 @@ export const getListingDetails = async (listingId) => {
     const v = listing.vendorId;
     const w = listing.warehouseId;
 
-    // Map attributeValueIds -> [{name: "Grade", value: "800x800"}, ...]
     const attributes = (p?.attributeValueIds || []).map(av => ({
         name: av.attributeId?.name || "Attribute",
         value: av.value
     }));
 
+    let cartCount = 0;
+    if (userId) {
+        const cart = await Cart.findOne({ userId });
+        if (cart && cart.items) {
+            const cartItem = cart.items.find(item => item.vendorProductId && item.vendorProductId.toString() === listingId.toString());
+            if (cartItem) {
+                cartCount = cartItem.quantity;
+            }
+        }
+    }
+
     return {
         listingId: listing._id,
-        cartCount: 1,
+        cartCount: cartCount,
 
         product: {
             name: p?.name,

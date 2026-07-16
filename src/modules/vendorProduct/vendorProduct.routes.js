@@ -7,7 +7,7 @@ const router = express.Router();
 // Apply auth middleware if strictly needed, though controller extracts vendorId flexibly
 router.post("/", vendorProductController.createListing);
 router.get("/search", vendorProductController.searchListings);  // For buyers filtering by subCategory!
-router.get("/details", vendorProductController.getListingDetails); // PDP - ?listingId=...
+router.get("/details", authenticate, vendorProductController.getListingDetails); // PDP - ?listingId=...
 router.get("/", vendorProductController.getListings);
 router.put("/:id", vendorProductController.updateListing);
 router.delete("/:id", vendorProductController.deleteListing);
