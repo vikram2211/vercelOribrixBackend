@@ -64,7 +64,6 @@ const normalizeStatusFilter = (status) => {
         underreview: "underReview",
         "under-review": "underReview",
         under_review: "underReview",
-        approved: "approved",
         rejected: "rejected",
     };
 
@@ -72,7 +71,7 @@ const normalizeStatusFilter = (status) => {
     if (!normalized) {
         throw new ApiError(
             400,
-            "Invalid status. Use pending, underReview, approved, or rejected"
+            "Invalid status. Use pending, underReview, or rejected"
         );
     }
     return normalized;

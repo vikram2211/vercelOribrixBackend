@@ -9,6 +9,7 @@ import subCategoryRoutes from "../modules/subCategory/subCategory.routes.js";
 import productRoutes from "../modules/product/product.routes.js";
 import kycRoutes from "../modules/kyc/kyc.routes.js";
 import couponRouter from "../modules/coupon/coupon.routes.js";
+import adminRouter from "../modules/admin/admin.routes.js";
 
 import cartRoutes from "../modules/cart/cart.routes.js";
 
@@ -19,10 +20,12 @@ router.use("/vendor", vendorRoutes);
 router.use("/customer", customerRouter);
 router.use("/product", categoryRoutes);
 router.use("/kyc", kycRoutes);
-router.use("/coupon", couponRouter)
+router.use("/coupon", couponRouter);
 // Catalog Routes
 router.use("/v1/sub-category", subCategoryRoutes);
 router.use("/product", productRoutes);
+
+router.use("/admin", adminRouter);
 
 // Vendor Inventory & Logistics Routes
 import vendorProductRoutes from "../modules/vendorProduct/vendorProduct.routes.js";

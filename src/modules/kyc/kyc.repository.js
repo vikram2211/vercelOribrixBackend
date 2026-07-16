@@ -1,4 +1,4 @@
-import Vendor from "../vendor/vendor.model.js";
+    import Vendor from "../vendor/vendor.model.js";
 
 const DOC_KEYS = [
     "gstCert",
@@ -108,6 +108,8 @@ export const findVendorsKYCPaginated_Repository = async ({
     const pipeline = [
         { $match: match },
         ...buildDocumentStatusStages(),
+        // Fully approved KYC vendors are excluded from the list
+        { $match: { documentStatus: { $ne: "approved" } } },
     ];
 
     if (status) {
