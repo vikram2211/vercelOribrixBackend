@@ -15,7 +15,7 @@ router.use(authorize("CUSTOMER")); // Require CUSTOMER role
 
 router.get("/", getCart);
 router.patch("/item", upsertCartItem); // Unified Upsert (Add/Update) API
-router.delete("/remove/:vendorProductId", removeFromCart);
+router.delete("/remove/:cartItemId", removeFromCart);
 router.delete("/clear", clearCart);
 
 export default router;

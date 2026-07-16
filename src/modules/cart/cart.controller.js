@@ -42,7 +42,7 @@ const formatCartResponse = (cart) => {
         cartTotal += itemTotal;
 
         return {
-            vendorProductId: vp._id,
+            cartItemId: vp._id, // Renamed for frontend clarity
             productName: displayName,
             image: p.thumbnail,
             quantity: item.quantity,
@@ -81,10 +81,11 @@ export const getCart = asyncHandler(async (req, res) => {
 // @access  Private (CUSTOMER)
 export const upsertCartItem = asyncHandler(async (req, res) => {
     const userId = req.user.userId;
+    // Map cartItemId from frontend to internal vendorProductId
     const { vendorProductId, quantity } = req.body;
 
     if (!vendorProductId || quantity === undefined) {
-        throw new ApiError(400, "Vendor Product ID and quantity are required.");
+        throw new ApiError(400, "Cart Item ID and quantity are required.");
     }
 
     if (quantity < 1) {
@@ -104,7 +105,7 @@ export const upsertCartItem = asyncHandler(async (req, res) => {
     if (itemIndex > -1) {
         cart.items[itemIndex].quantity = quantity;
     } else {
-        cart.items.push({ vendorProductId, quantity });
+        cart.items.push({ vendorProductId: vendorProductId, quantity });
     }
 
     await cart.save();
@@ -114,11 +115,11 @@ export const upsertCartItem = asyncHandler(async (req, res) => {
 });
 
 // @desc    Remove item from cart
-// @route   DELETE /api/cart/remove/:vendorProductId
+// @route   DELETE /api/cart/remove/:cartItemId
 // @access  Private (CUSTOMER)
 export const removeFromCart = asyncHandler(async (req, res) => {
     const userId = req.user.userId;
-    const { vendorProductId } = req.params;
+    const { cartItemId } = req.params;
 
     let cart = await Cart.findOne({ userId });
 
@@ -127,7 +128,7 @@ export const removeFromCart = asyncHandler(async (req, res) => {
     }
 
     cart.items = cart.items.filter(
-        (item) => item.vendorProductId.toString() !== vendorProductId
+        (item) => item.vendorProductId.toString() !== cartItemId
     );
 
     await cart.save();
