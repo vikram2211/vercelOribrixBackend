@@ -10,8 +10,11 @@ import productRoutes from "../modules/product/product.routes.js";
 import kycRoutes from "../modules/kyc/kyc.routes.js";
 import couponRouter from "../modules/coupon/coupon.routes.js";
 
+import cartRoutes from "../modules/cart/cart.routes.js";
+
 // Import routes from modules here as you build them
 router.use("/auth", authRoutes);
+router.use("/v1/cart", cartRoutes);
 router.use("/vendor", vendorRoutes);
 router.use("/customer", customerRouter);
 router.use("/product", categoryRoutes);
