@@ -1,4 +1,5 @@
 import ApiError from "../../utils/ApiError.js";
+import User from "../user/user.model.js";
 import {
     deleteProfile_repository,
     displayProfile_repository,
@@ -96,4 +97,29 @@ export const deleteProfile_Services = async (userId) => {
         throw new ApiError(404, "Profile not found");
     }
     return true;
+};
+
+export const getReferralData_Services = async (userId) => {
+    const user = await findActiveUserById_repository(userId);
+    if (!user) {
+        throw new ApiError(404, "User not found");
+    }
+
+    const invitedPeopleDocs = await User.find({ referredBy: userId }).select("fullName photo hasPlacedFirstOrder");
+
+    const relatedInvitedPeople = invitedPeopleDocs.map(doc => ({
+        fullName: doc.fullName,
+        photo: doc.photo || "",
+        amount: doc.hasPlacedFirstOrder ? 500 : 0
+    }));
+
+    return {
+        title: "Earn Rs 500 for every contractor you bring",
+        description: "You get Rs 500 credit once they place it",
+        myReferralCode: user.myReferralCode || "",
+        totalInvited: user.referralStats?.totalSignups || 0,
+        successfulInvites: user.referralStats?.successfulReferrals || 0,
+        moneyEarned: user.referralStats?.totalEarned || 0,
+        relatedInvitedPeople: relatedInvitedPeople
+    };
 };

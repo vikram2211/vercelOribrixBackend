@@ -4,7 +4,20 @@ import {
     deleteProfile_Services,
     displayProfile_Services,
     editProfile_Services,
+    getReferralData_Services,
 } from "./customerProfile.service.js";
+
+export const getReferralData = asyncHandler(async (req, res) => {
+    const userId = req.user.userId;
+    const referralData = await getReferralData_Services(userId);
+
+    return sendResponse(
+        res,
+        200,
+        "Referral data fetched successfully",
+        referralData
+    );
+});
 
 export const displayProfileDetails = asyncHandler(async (req, res) => {
     const userId = req.user.userId;

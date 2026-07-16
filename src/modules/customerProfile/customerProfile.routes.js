@@ -1,11 +1,13 @@
 import express from "express";
 import { authenticate, authorize } from "../../middleware/auth.middleware.js";
 import { uploadProfile } from "../../middleware/upload.middleware.js";
-import { deleteProfileDetails, displayProfileDetails, editProfileDetails } from "./customerProfile.controller.js";
+import { deleteProfileDetails, displayProfileDetails, editProfileDetails, getReferralData } from "./customerProfile.controller.js";
 import { displaySites, addSites, editSites, deleteSites, displaySiteName, } from "../site/site.controller.js";
 import { addAddress, deleteAddress, displayAddress, editAddress } from "../address/address.controller.js";
 
 const router = express.Router();
+
+router.get("/v1/referral", authenticate, authorize("CUSTOMER"), getReferralData);
 
 router.get("/v1/profile",
     authenticate,
