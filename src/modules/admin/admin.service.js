@@ -1,5 +1,8 @@
+import bcrypt from "bcryptjs";
+import mongoose from "mongoose";
 import ApiError from "../../utils/ApiError.js";
 import * as adminRepo from "./admin.repository.js";
+import * as emailService from "../../services/email.service.js";
 
 const VENDOR_STATUSES = [
     "PENDING_VERIFICATION",
@@ -20,6 +23,14 @@ const DOC_KEYS = [
     "ownerAadhaarDoc",
     "oribrixSellerAgreement",
     "iso9001",
+];
+
+const DOC_STATUSES = [
+    "PENDING",
+    "RECEIVED",
+    "APPROVED",
+    "RE-UPLOAD_REQUESTED",
+    "REJECTED",
 ];
 
 const formatDocument = (doc) => ({
@@ -194,6 +205,29 @@ export const displayVendors_Services = async ({
     };
 };
 
+export const displayVendorsApplication_Services = async ({
+    page,
+    limit,
+    skip,
+    search,
+}) => {
+    const { vendors, total } = await adminRepo.findVendorApplicationsPaginated({
+        skip,
+        limit,
+        search: search?.trim() || "",
+    });
+
+    return {
+        vendors: vendors.map(formatVendorListItem),
+        pagination: {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit) || 0,
+        },
+    };
+};
+
 export const displayVendorDetails_Services = async (vendorId) => {
     const result = await adminRepo.findVendorDetailsById(vendorId);
     if (!result) throw new ApiError(404, "Vendor not found");
@@ -278,6 +312,60 @@ export const editVendorDetails_Services = async (vendorId, data) => {
             throw new ApiError(400, "productCategories must be an array");
         }
         updateData.productCategories = data.productCategories;
+    }
+
+    if (data.kycDocuments !== undefined) {
+        if (
+            typeof data.kycDocuments !== "object" ||
+            Array.isArray(data.kycDocuments)
+        ) {
+            throw new ApiError(400, "kycDocuments must be an object");
+        }
+
+        const entries = Object.entries(data.kycDocuments);
+        if (!entries.length) {
+            throw new ApiError(400, "Provide at least one KYC document to update");
+        }
+
+        const mergedDocs = { ...(vendor.kycDocuments || {}) };
+
+        for (const [key, payload] of entries) {
+            if (!DOC_KEYS.includes(key)) {
+                throw new ApiError(400, `Invalid document key: ${key}`);
+            }
+            if (
+                !payload ||
+                typeof payload !== "object" ||
+                Array.isArray(payload)
+            ) {
+                throw new ApiError(400, `${key} must be an object`);
+            }
+
+            const status = String(payload.status || "")
+                .trim()
+                .toUpperCase()
+                .replace(/[-\s]/g, "_");
+
+            if (!DOC_STATUSES.includes(status)) {
+                throw new ApiError(
+                    400,
+                    `Invalid ${key} status. Use ${DOC_STATUSES.join(", ")}`
+                );
+            }
+
+            const existing = mergedDocs[key] || {};
+            const updatedDoc = {
+                fileUrl: existing.fileUrl || "",
+                status,
+                remarks:
+                    payload.remarks !== undefined
+                        ? String(payload.remarks)
+                        : existing.remarks || "",
+            };
+
+            mergedDocs[key] = updatedDoc;
+            updateData[`kycDocuments.${key}`] = updatedDoc;
+        }
     }
 
     if (data.status !== undefined) {
@@ -533,5 +621,579 @@ export const deleteCustomer_Services = async (customerId) => {
     if (!deleted) {
         throw new ApiError(404, "Customer not found");
     }
+    return true;
+};
+
+// ─── Sub Admin ────────────────────────────────────────────
+
+const formatSubAdmin = (user) => ({
+    subAdminId: user._id,
+    fullName: user.fullName || "",
+    email: user.email || "",
+    mobile: user.mobile || "",
+    photo: user.photo || "",
+    permissions: user.permissions || [],
+    // Plain-text copy of the password so the admin can view/share it
+    password: user.coppyPassword || "",
+    isActive: user.isActive,
+    isVerified: user.isVerified,
+    lastLogin: user.lastLogin || null,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+});
+
+const normalizePermissions = (permissions) => {
+    if (permissions === undefined) return undefined;
+    if (!Array.isArray(permissions)) {
+        throw new ApiError(400, "permissions must be an array of strings");
+    }
+    return permissions
+        .map((p) => String(p).trim())
+        .filter((p) => p.length > 0);
+};
+
+export const createSubAdmin_Services = async (data) => {
+    const fullName = String(data.fullName || "").trim();
+    if (!fullName) throw new ApiError(400, "Full name is required");
+
+    const email = String(data.email || "").trim().toLowerCase();
+    if (!email) throw new ApiError(400, "Email is required");
+
+    const password = String(data.password || "");
+    if (!password) throw new ApiError(400, "Password is required");
+    if (password.length < 6) {
+        throw new ApiError(400, "Password must be at least 6 characters");
+    }
+
+    const emailExists = await adminRepo.findUserByEmail(email);
+    if (emailExists) throw new ApiError(400, "Email already in use");
+
+    const payload = {
+        fullName,
+        email,
+        password: await bcrypt.hash(password, 10),
+        // Store the plain password copy on create
+        coppyPassword: password,
+        isVerified: true,
+    };
+
+    if (data.mobile !== undefined) {
+        const mobile = String(data.mobile).trim();
+        if (mobile) {
+            const mobileExists = await adminRepo.findUserByMobile(mobile);
+            if (mobileExists) throw new ApiError(400, "Mobile already in use");
+            payload.mobile = mobile;
+        }
+    }
+
+    if (data.photo !== undefined) payload.photo = String(data.photo);
+
+    const permissions = normalizePermissions(data.permissions);
+    payload.permissions = permissions || [];
+
+    const subAdminRole = await adminRepo.findRoleByName("SUB_ADMIN");
+    if (!subAdminRole) {
+        throw new ApiError(500, "SUB_ADMIN role not configured");
+    }
+    payload.role = subAdminRole._id;
+
+    const created = await adminRepo.createSubAdminUser(payload);
+
+    // Send the credentials email (fire-and-forget so it never blocks the response)
+    emailService
+        .sendSubAdminWelcomeEmail(email, {
+            fullName,
+            password,
+            mobile: payload.mobile,
+            permissions: payload.permissions,
+        })
+        .catch((err) => {
+            console.error("Sub admin welcome email failed to send:", err);
+        });
+
+    return formatSubAdmin(created);
+};
+
+export const displaySubAdmins_Services = async ({
+    page,
+    limit,
+    skip,
+    search,
+    isActive,
+}) => {
+    let activeFilter = null;
+    if (
+        isActive !== undefined &&
+        isActive !== null &&
+        String(isActive).trim() !== ""
+    ) {
+        const value = String(isActive).trim().toLowerCase();
+        if (value === "true" || value === "1") activeFilter = true;
+        else if (value === "false" || value === "0") activeFilter = false;
+        else throw new ApiError(400, "Invalid isActive. Use true or false");
+    }
+
+    const { subAdmins, total } = await adminRepo.findSubAdminsPaginated({
+        skip,
+        limit,
+        search: search?.trim() || "",
+        isActive: activeFilter,
+    });
+
+    return {
+        subAdmins: subAdmins.map(formatSubAdmin),
+        pagination: {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit) || 0,
+        },
+    };
+};
+
+export const displaySubAdminDetails_Services = async (subAdminId) => {
+    const subAdmin = await adminRepo.findSubAdminById(subAdminId);
+    if (!subAdmin) throw new ApiError(404, "Sub admin not found");
+    return formatSubAdmin(subAdmin);
+};
+
+export const editSubAdminDetails_Services = async (subAdminId, data) => {
+    const existing = await adminRepo.findSubAdminById(subAdminId);
+    if (!existing) throw new ApiError(404, "Sub admin not found");
+
+    const updateData = {};
+
+    const name = data.fullName ?? data.name;
+    if (name !== undefined) {
+        const trimmedName = String(name).trim();
+        if (!trimmedName) throw new ApiError(400, "Full name cannot be empty");
+        updateData.fullName = trimmedName;
+    }
+
+    if (data.email !== undefined) {
+        const email = String(data.email).trim().toLowerCase();
+        if (!email) throw new ApiError(400, "Email cannot be empty");
+        const emailExists = await adminRepo.findUserByEmailExcludingId(
+            email,
+            subAdminId
+        );
+        if (emailExists) throw new ApiError(400, "Email already in use");
+        updateData.email = email;
+    }
+
+    if (data.mobile !== undefined) {
+        const mobile = String(data.mobile).trim();
+        if (mobile) {
+            const mobileExists = await adminRepo.findUserByMobileExcludingId(
+                mobile,
+                subAdminId
+            );
+            if (mobileExists) throw new ApiError(400, "Mobile already in use");
+        }
+        updateData.mobile = mobile;
+    }
+
+    if (data.photo !== undefined) updateData.photo = String(data.photo);
+
+    if (data.isActive !== undefined) {
+        if (typeof data.isActive !== "boolean") {
+            throw new ApiError(400, "isActive must be a boolean");
+        }
+        updateData.isActive = data.isActive;
+    }
+
+    const permissions = normalizePermissions(data.permissions);
+    if (permissions !== undefined) {
+        updateData.permissions = permissions;
+    }
+
+    // On edit, only when a new password is provided, save the plain copy too
+    if (data.password !== undefined && String(data.password) !== "") {
+        const password = String(data.password);
+        if (password.length < 6) {
+            throw new ApiError(400, "Password must be at least 6 characters");
+        }
+        updateData.password = await bcrypt.hash(password, 10);
+        updateData.coppyPassword = password;
+    }
+
+    if (Object.keys(updateData).length === 0) {
+        throw new ApiError(400, "No fields provided to update");
+    }
+
+    const updated = await adminRepo.updateSubAdminUser(subAdminId, updateData);
+    if (!updated) throw new ApiError(404, "Sub admin not found");
+    return formatSubAdmin(updated);
+};
+
+export const deleteSubAdmin_Services = async (subAdminId) => {
+    const deleted = await adminRepo.softDeleteSubAdmin(subAdminId);
+    if (!deleted) throw new ApiError(404, "Sub admin not found");
+    return true;
+};
+
+// ─── Permissions ──────────────────────────────────────────
+
+const formatPermission = (permission) => ({
+    permissionId: permission._id,
+    name: permission.name || "",
+    description: permission.description || "",
+    createdAt: permission.createdAt,
+    updatedAt: permission.updatedAt,
+});
+
+export const displayPermissions_Services = async () => {
+    const permissions = await adminRepo.findAllPermissions();
+    return permissions.map(formatPermission);
+};
+
+export const createPermission_Services = async (data) => {
+    const name = String(data.name || "").trim();
+    if (!name) throw new ApiError(400, "Permission name is required");
+
+    const exists = await adminRepo.findPermissionByName(name);
+    if (exists) throw new ApiError(400, "Permission already exists");
+
+    const created = await adminRepo.createPermission({
+        name,
+        description: data.description ? String(data.description).trim() : "",
+    });
+
+    return formatPermission(created.toObject ? created.toObject() : created);
+};
+
+export const editPermission_Services = async (permissionId, data) => {
+    const existing = await adminRepo.findPermissionById(permissionId);
+    if (!existing) throw new ApiError(404, "Permission not found");
+
+    const updateData = {};
+
+    if (data.name !== undefined) {
+        const name = String(data.name).trim();
+        if (!name) throw new ApiError(400, "Permission name cannot be empty");
+        const duplicate = await adminRepo.findPermissionByName(name);
+        if (duplicate && String(duplicate._id) !== String(permissionId)) {
+            throw new ApiError(400, "Permission already exists");
+        }
+        updateData.name = name;
+    }
+
+    if (data.description !== undefined) {
+        updateData.description = String(data.description).trim();
+    }
+
+    if (Object.keys(updateData).length === 0) {
+        throw new ApiError(400, "No fields provided to update");
+    }
+
+    const updated = await adminRepo.updatePermissionById(permissionId, updateData);
+    if (!updated) throw new ApiError(404, "Permission not found");
+    return formatPermission(updated);
+};
+
+export const deletePermission_Services = async (permissionId) => {
+    const deleted = await adminRepo.deletePermissionById(permissionId);
+    if (!deleted) throw new ApiError(404, "Permission not found");
+    return true;
+};
+
+// ─── Products ─────────────────────────────────────────────
+
+const assertObjectId = (value, field) => {
+    if (!mongoose.Types.ObjectId.isValid(value)) {
+        throw new ApiError(400, `Invalid ${field}`);
+    }
+};
+
+const slugify = (str) =>
+    String(str)
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+
+const formatRef = (ref) =>
+    ref
+        ? { id: ref._id || ref, name: ref.name || "" }
+        : null;
+
+const formatProduct = (p) => ({
+    productId: p._id,
+    name: p.name || "",
+    slug: p.slug || "",
+    description: p.description || "",
+    thumbnail: p.thumbnail || "",
+    images: p.images || [],
+    category: formatRef(p.categoryId),
+    subCategory: formatRef(p.subCategoryId),
+    brand: formatRef(p.brandId),
+    attributeValueIds: p.attributeValueIds || [],
+    hsnCode: p.hsnCode || "",
+    gstPercentage: p.gstPercentage ?? null,
+    bulkPricing: (p.bulkPricing || []).map((t) => ({
+        minQty: t.minQty,
+        price: t.price,
+    })),
+    warranty: p.warranty || "",
+    returnPolicy: p.returnPolicy || "",
+    seoTitle: p.seoTitle || "",
+    seoDescription: p.seoDescription || "",
+    isActive: p.isActive,
+    createdAt: p.createdAt,
+    updatedAt: p.updatedAt,
+});
+
+// Shared optional-field mapper for create/edit
+const applyProductFields = (data, target) => {
+    if (data.description !== undefined) target.description = String(data.description);
+    if (data.thumbnail !== undefined) target.thumbnail = String(data.thumbnail);
+    if (data.images !== undefined) {
+        if (!Array.isArray(data.images)) {
+            throw new ApiError(400, "images must be an array");
+        }
+        target.images = data.images.map((i) => String(i));
+    }
+    if (data.attributeValueIds !== undefined) {
+        if (!Array.isArray(data.attributeValueIds)) {
+            throw new ApiError(400, "attributeValueIds must be an array");
+        }
+        data.attributeValueIds.forEach((id) => assertObjectId(id, "attributeValueId"));
+        target.attributeValueIds = data.attributeValueIds;
+    }
+    if (data.hsnCode !== undefined) target.hsnCode = String(data.hsnCode);
+    if (data.gstPercentage !== undefined) {
+        const gst = Number(data.gstPercentage);
+        if (Number.isNaN(gst)) throw new ApiError(400, "gstPercentage must be a number");
+        target.gstPercentage = gst;
+    }
+    if (data.bulkPricing !== undefined) {
+        let tiers = data.bulkPricing;
+        if (typeof tiers === "string") {
+            try {
+                tiers = JSON.parse(tiers);
+            } catch {
+                throw new ApiError(400, "bulkPricing must be a valid JSON array");
+            }
+        }
+        if (!Array.isArray(tiers)) {
+            throw new ApiError(400, "bulkPricing must be an array");
+        }
+        target.bulkPricing = tiers.map((t) => {
+            const minQty = Number(t.minQty);
+            const price = Number(t.price);
+            if (Number.isNaN(minQty) || Number.isNaN(price)) {
+                throw new ApiError(400, "Each bulk price needs a numeric minQty and price");
+            }
+            if (minQty < 1) throw new ApiError(400, "minQty must be at least 1");
+            if (price < 0) throw new ApiError(400, "price cannot be negative");
+            return { minQty, price };
+        });
+    }
+    if (data.warranty !== undefined) target.warranty = String(data.warranty);
+    if (data.returnPolicy !== undefined) target.returnPolicy = String(data.returnPolicy);
+    if (data.seoTitle !== undefined) target.seoTitle = String(data.seoTitle);
+    if (data.seoDescription !== undefined) {
+        target.seoDescription = String(data.seoDescription);
+    }
+    if (data.isActive !== undefined) {
+        if (typeof data.isActive !== "boolean") {
+            throw new ApiError(400, "isActive must be a boolean");
+        }
+        target.isActive = data.isActive;
+    }
+};
+
+export const displayProducts_Services = async ({
+    page,
+    limit,
+    skip,
+    search,
+    categoryId,
+    brandId,
+    isActive,
+}) => {
+    let activeFilter = null;
+    if (
+        isActive !== undefined &&
+        isActive !== null &&
+        String(isActive).trim() !== ""
+    ) {
+        const value = String(isActive).trim().toLowerCase();
+        if (value === "true" || value === "1") activeFilter = true;
+        else if (value === "false" || value === "0") activeFilter = false;
+        else throw new ApiError(400, "Invalid isActive. Use true or false");
+    }
+
+    if (categoryId) assertObjectId(categoryId, "categoryId");
+    if (brandId) assertObjectId(brandId, "brandId");
+
+    const { products, total } = await adminRepo.findProductsPaginated({
+        skip,
+        limit,
+        search: search?.trim() || "",
+        categoryId: categoryId || null,
+        brandId: brandId || null,
+        isActive: activeFilter,
+    });
+
+    return {
+        products: products.map(formatProduct),
+        pagination: {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit) || 0,
+        },
+    };
+};
+
+const formatProductVendorListing = (l) => {
+    const vendor = l.vendorId || {};
+    const warehouse = l.warehouseId || {};
+    return {
+        listingId: l._id,
+        vendorId: vendor._id || l.vendorId || null,
+        vendorName:
+            vendor.businessDetails?.legalBusinessName ||
+            vendor.businessDetails?.tradeName ||
+            vendor.ownerDetails?.fullName ||
+            "Unknown vendor",
+        vendorStatus: vendor.status || "",
+        warehouse: {
+            warehouseId: warehouse._id || l.warehouseId || null,
+            name: warehouse.name || "",
+            address: warehouse.address || "",
+        },
+        vendorSku: l.vendorSku || "",
+        mrp: l.mrp ?? null,
+        sellingPrice: l.sellingPrice ?? null,
+        minOrderQuantity: l.minOrderQuantity ?? null,
+        stockQuantity: l.stockQuantity ?? 0,
+        status: l.status || "",
+        createdAt: l.createdAt,
+        updatedAt: l.updatedAt,
+    };
+};
+
+export const displayProductDetails_Services = async (productId) => {
+    assertObjectId(productId, "product id");
+
+    const product = await adminRepo.findProductById(productId);
+    if (!product) throw new ApiError(404, "Product not found");
+
+    const listings = await adminRepo.findVendorListingsByProduct(productId);
+    const vendors = listings.map(formatProductVendorListing);
+
+    const sellingPrices = vendors
+        .map((v) => v.sellingPrice)
+        .filter((p) => typeof p === "number");
+
+    const summary = {
+        vendorCount: new Set(
+            vendors.map((v) => String(v.vendorId)).filter(Boolean)
+        ).size,
+        listingCount: vendors.length,
+        totalStock: vendors.reduce((sum, v) => sum + (v.stockQuantity || 0), 0),
+        lowestPrice: sellingPrices.length ? Math.min(...sellingPrices) : null,
+        highestPrice: sellingPrices.length ? Math.max(...sellingPrices) : null,
+    };
+
+    return {
+        ...formatProduct(product),
+        vendors,
+        summary,
+    };
+};
+
+export const createProduct_Services = async (data) => {
+    const name = String(data.name || "").trim();
+    if (!name) throw new ApiError(400, "Product name is required");
+
+    if (!data.categoryId) throw new ApiError(400, "categoryId is required");
+    assertObjectId(data.categoryId, "categoryId");
+
+    if (!data.brandId) throw new ApiError(400, "brandId is required");
+    assertObjectId(data.brandId, "brandId");
+
+    if (data.subCategoryId) assertObjectId(data.subCategoryId, "subCategoryId");
+
+    // Generate slug from provided value or the product name; ensure uniqueness
+    let slug = data.slug ? slugify(data.slug) : slugify(name);
+    if (!slug) throw new ApiError(400, "Unable to generate a slug from the name");
+    const slugExists = await adminRepo.findProductBySlug(slug);
+    if (slugExists) slug = `${slug}-${Date.now().toString(36)}`;
+
+    const payload = {
+        categoryId: data.categoryId,
+        brandId: data.brandId,
+        name,
+        slug,
+    };
+    if (data.subCategoryId) payload.subCategoryId = data.subCategoryId;
+
+    applyProductFields(data, payload);
+
+    const created = await adminRepo.createProduct(payload);
+    return formatProduct(created);
+};
+
+export const editProductDetails_Services = async (productId, data) => {
+    assertObjectId(productId, "product id");
+
+    const existing = await adminRepo.findProductById(productId);
+    if (!existing) throw new ApiError(404, "Product not found");
+
+    const updateData = {};
+
+    if (data.name !== undefined) {
+        const name = String(data.name).trim();
+        if (!name) throw new ApiError(400, "Product name cannot be empty");
+        updateData.name = name;
+    }
+
+    if (data.slug !== undefined) {
+        const slug = slugify(data.slug);
+        if (!slug) throw new ApiError(400, "Invalid slug");
+        const duplicate = await adminRepo.findProductBySlug(slug);
+        if (duplicate && String(duplicate._id) !== String(productId)) {
+            throw new ApiError(400, "Slug already in use");
+        }
+        updateData.slug = slug;
+    }
+
+    if (data.categoryId !== undefined) {
+        assertObjectId(data.categoryId, "categoryId");
+        updateData.categoryId = data.categoryId;
+    }
+
+    if (data.subCategoryId !== undefined) {
+        if (data.subCategoryId) {
+            assertObjectId(data.subCategoryId, "subCategoryId");
+            updateData.subCategoryId = data.subCategoryId;
+        } else {
+            updateData.subCategoryId = null;
+        }
+    }
+
+    if (data.brandId !== undefined) {
+        assertObjectId(data.brandId, "brandId");
+        updateData.brandId = data.brandId;
+    }
+
+    applyProductFields(data, updateData);
+
+    if (Object.keys(updateData).length === 0) {
+        throw new ApiError(400, "No fields provided to update");
+    }
+
+    const updated = await adminRepo.updateProductById(productId, updateData);
+    if (!updated) throw new ApiError(404, "Product not found");
+    return formatProduct(updated);
+};
+
+export const deleteProduct_Services = async (productId) => {
+    assertObjectId(productId, "product id");
+    const deleted = await adminRepo.deleteProductById(productId);
+    if (!deleted) throw new ApiError(404, "Product not found");
     return true;
 };

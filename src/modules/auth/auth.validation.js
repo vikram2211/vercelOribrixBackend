@@ -36,6 +36,16 @@ export const verifyOtpSchema = Joi.object({
     otp: Joi.string().required().length(6)
 });
 
+export const changePasswordSchema = Joi.object({
+    currentPassword: Joi.string().required(),
+    newPassword: Joi.string().required().min(6)
+}).custom((value, helpers) => {
+    if (value.currentPassword === value.newPassword) {
+        return helpers.message("New password must be different from current password");
+    }
+    return value;
+});
+
 export const onboardingSchema = Joi.object({
     persona: Joi.string().valid("Contractor", "Builder", "Homeowner", "Architect").required(),
     companyName: Joi.string().allow("").optional(),

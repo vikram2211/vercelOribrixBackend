@@ -1,6 +1,10 @@
 import * as authService from "./auth.service.js";
 import { sendResponse } from "../../utils/response.js";
+<<<<<<< HEAD
 import { registerSchema, loginSchema, verifyOtpSchema, onboardingSchema, sendOtpSchema, customerLoginSchema, refreshTokenSchema } from "./auth.validation.js";
+=======
+import { registerSchema, loginSchema, verifyOtpSchema, onboardingSchema, sendOtpSchema, customerLoginSchema, changePasswordSchema } from "./auth.validation.js";
+>>>>>>> dff7fb0 (updated apis)
 import ApiError from "../../utils/ApiError.js";
 
 export const register = async (req, res, next) => {
@@ -66,6 +70,25 @@ export const sendOtp = async (req, res, next) => {
 
         const result = await authService.sendOtpForLogin(value.identifier);
         return sendResponse(res, 200, result.status, null);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const changePassword = async (req, res, next) => {
+    try {
+        const { error, value } = changePasswordSchema.validate(req.body);
+        if (error) throw new ApiError(400, error.details[0].message);
+
+        // userId is injected by the authenticate middleware via JWT
+        const userId = req.user.userId;
+
+        const result = await authService.changePassword(
+            userId,
+            value.currentPassword,
+            value.newPassword
+        );
+        return sendResponse(res, 200, result.message, null);
     } catch (error) {
         next(error);
     }

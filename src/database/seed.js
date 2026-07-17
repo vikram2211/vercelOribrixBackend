@@ -6,6 +6,7 @@ export const seedRoles = async () => {
     const roles = [
         "SUPER_ADMIN",
         "ADMIN",
+        "SUB_ADMIN",
         "CUSTOMER",
         "TEAM_MEMBER",
         "VENDOR_OWNER",

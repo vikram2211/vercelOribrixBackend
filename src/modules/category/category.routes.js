@@ -1,5 +1,6 @@
 import express from "express";
 import { authenticate, authorize } from "../../middleware/auth.middleware.js";
+import { AdminPermissions } from "../admin/admin.routes.js";
 import { uploadCategory } from "../../middleware/upload.middleware.js";
 import {
   displayProductCategories,
@@ -32,7 +33,7 @@ router.get(
 router.get(
   "/v1/admin/categories",
   authenticate,
-  authorize("ADMIN"),
+  authorize(AdminPermissions),
   displayProductCategories
 );
 
@@ -40,7 +41,7 @@ router.get(
 router.get(
   "/v1/categories/:id",
   authenticate,
-  authorize("ADMIN"),
+  authorize(AdminPermissions),
   displayProductCategory
 );
 
@@ -48,7 +49,7 @@ router.get(
 router.post(
   "/v1/categories",
   authenticate,
-  authorize("ADMIN"),
+  authorize(AdminPermissions),
   uploadCategory.single("image"),
   addProductCategory
 );
@@ -57,7 +58,7 @@ router.post(
 router.put(
   "/v1/categories/:id",
   authenticate,
-  authorize("ADMIN"),
+  authorize(AdminPermissions),
   uploadCategory.single("image"),
   editProductCategory
 );
@@ -66,7 +67,7 @@ router.put(
 router.delete(
   "/v1/categories/:id",
   authenticate,
-  authorize("ADMIN"),
+  authorize(AdminPermissions),
   deleteProductCategory
 );
 

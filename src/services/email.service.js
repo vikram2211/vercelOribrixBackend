@@ -36,6 +36,36 @@ export const sendVendorWelcomeEmail = async (email, password) => {
     }
 };
 
+export const sendSubAdminWelcomeEmail = async (email, { fullName, password, mobile, permissions = [] }) => {
+    try {
+        const permissionsList = permissions.length
+            ? `<ul>${permissions.map((p) => `<li>${p}</li>`).join("")}</ul>`
+            : "<p>No permissions assigned yet.</p>";
+
+        const mailOptions = {
+            from: `"OriBrix Support" <${process.env.SMTP_USER}>`,
+            to: email,
+            subject: "Your OriBrix Sub Admin Account - Login Credentials",
+            html: `
+                <h3>Welcome to OriBrix, ${fullName || "Sub Admin"}!</h3>
+                <p>A Sub Admin account has been created for you. Use the credentials below to log in:</p>
+                <p><b>Full Name:</b> ${fullName || "-"}</p>
+                <p><b>Email:</b> ${email}</p>
+                ${mobile ? `<p><b>Mobile:</b> ${mobile}</p>` : ""}
+                <p><b>Password:</b> ${password}</p>
+                <p><b>Permissions:</b></p>
+                ${permissionsList}
+                <p><i>We recommend changing your password after your first login.</i></p>
+            `,
+        };
+
+        const info = await transporter.sendMail(mailOptions);
+        console.log("Sub admin welcome email sent: %s", info.messageId);
+    } catch (error) {
+        console.error("Error sending sub admin welcome email:", error);
+    }
+};
+
 export const sendVendorOTPEmail = async (email, otp) => {
     try {
         const mailOptions = {

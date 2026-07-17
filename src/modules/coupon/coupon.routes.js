@@ -1,5 +1,6 @@
 import express from "express";
 import { authenticate, authorize } from "../../middleware/auth.middleware.js";
+import { AdminPermissions } from "../admin/admin.routes.js";
 import { uploadCoupon as uploadCouponMiddleware } from "../../middleware/upload.middleware.js";
 import {
     getAllCoupons,
@@ -20,7 +21,7 @@ router.post(
 );
 
 // Admin — list all uploaded coupons (optional ?status=pending)
-router.get("/v1", authenticate, authorize("ADMIN"), getAllCoupons);
+router.get("/v1", authenticate, authorize(AdminPermissions), getAllCoupons);
 
 // Customer — accepted / alreadyUsed / expired (reject & deleted hidden)
 router.get(
@@ -34,7 +35,7 @@ router.get(
 router.patch(
     "/v1/:id",
     authenticate,
-    authorize("ADMIN"),
+    authorize(AdminPermissions),
     updateCouponStatus
 );
 

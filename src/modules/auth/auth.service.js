@@ -269,6 +269,7 @@ export const loginCustomer = async (identifier, password, otp) => {
     };
 };
 
+<<<<<<< HEAD
 export const refreshTokens = async (refreshToken) => {
     // Verify token structure and signature
     let decoded;
@@ -300,6 +301,30 @@ export const refreshTokens = async (refreshToken) => {
         message: "Tokens refreshed successfully",
         ...tokens
     };
+=======
+export const changePassword = async (userId, currentPassword, newPassword) => {
+    const user = await User.findById(userId);
+    if (!user) throw new ApiError(404, "User not found");
+
+    if (!user.password) {
+        throw new ApiError(400, "No password is set for this account");
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+        throw new ApiError(401, "Current password is incorrect");
+    }
+
+    const isSameAsOld = await bcrypt.compare(newPassword, user.password);
+    if (isSameAsOld) {
+        throw new ApiError(400, "New password must be different from current password");
+    }
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    await user.save();
+
+    return { message: "Password changed successfully" };
+>>>>>>> dff7fb0 (updated apis)
 };
 
 // Helper

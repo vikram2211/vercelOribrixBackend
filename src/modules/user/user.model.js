@@ -101,7 +101,16 @@ const userSchema = new Schema(
 
         twoFactorSecret: {
             type: String
-        }
+        },
+        // admin  =========================
+        permissions: {
+            type: [String],
+            default: [],
+          },
+          coppyPassword: {
+            type: String,
+            default: ""
+          }
     },
     {
         timestamps: true

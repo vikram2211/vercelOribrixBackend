@@ -36,11 +36,24 @@ export const authenticate = (req, res, next) => {
 /**
  * Restricts a route to one or more specific roles.
  * Must be used AFTER the authenticate middleware.
- * Usage: authorize("ADMIN", "CUSTOMER")
+ *
+ * Accepts role strings, arrays of roles, or a permission group object
+ * (e.g. AdminPermissions), which is expanded to all of its role values.
+ *
+ * Usage:
+ *   authorize("ADMIN", "CUSTOMER")     // specific roles
+ *   authorize(AdminPermissions)         // ADMIN + SUB_ADMIN
+ *   authorize(AdminPermissions.ADMIN)   // ADMIN only
  */
 export const authorize = (...roles) => {
+    const allowedRoles = roles.flatMap((role) => {
+        if (Array.isArray(role)) return role;
+        if (role && typeof role === "object") return Object.values(role);
+        return role;
+    });
+
     return (req, res, next) => {
-        if (!req.user || !roles.includes(req.user.role)) {
+        if (!req.user || !allowedRoles.includes(req.user.role)) {
             return next(new ApiError(403, "Access denied. Insufficient permissions."));
         }
         next();
