@@ -31,7 +31,11 @@ router.use("/admin", adminRouter);
 import vendorProductRoutes from "../modules/vendorProduct/vendorProduct.routes.js";
 import warehouseRoutes from "../modules/warehouse/warehouse.routes.js";
 
+// Mobile App Aggregation Routes
+import homeRoutes from "../modules/home/home.routes.js";
+
 router.use("/v1/vendor-product", vendorProductRoutes);
 router.use("/warehouse", warehouseRoutes);
+router.use("/v1/mobile/home", homeRoutes);
 
 export default router;
