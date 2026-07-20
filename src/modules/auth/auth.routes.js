@@ -15,6 +15,11 @@ router.post("/onboard", authenticate, authController.onboard); // Protected: req
 router.post("/refresh-token", authController.refreshToken);
 =======
 router.post("/change-password", authenticate, authController.changePassword); // Protected: requires valid JWT
+<<<<<<< HEAD
 >>>>>>> dff7fb0 (updated apis)
+=======
+router.post("/forgot-password", authController.forgotPassword);
+router.post("/reset-password", authController.resetPassword);
+>>>>>>> 0f22cc5 (Add admin profile management and password reset functionality)
 
 export default router;

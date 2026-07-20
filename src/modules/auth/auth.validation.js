@@ -46,6 +46,16 @@ export const changePasswordSchema = Joi.object({
     return value;
 });
 
+export const forgotPasswordSchema = Joi.object({
+    identifier: Joi.string().required(),
+});
+
+export const resetPasswordSchema = Joi.object({
+    identifier: Joi.string().required(),
+    otp: Joi.string().required().length(6),
+    newPassword: Joi.string().required().min(6),
+});
+
 export const onboardingSchema = Joi.object({
     persona: Joi.string().valid("Contractor", "Builder", "Homeowner", "Architect").required(),
     companyName: Joi.string().allow("").optional(),

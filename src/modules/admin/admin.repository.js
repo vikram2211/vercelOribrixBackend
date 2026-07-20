@@ -9,6 +9,9 @@ import addressModel from "../address/address.model.js";
 import Permission from "./permissions.model.js";
 import Product from "../product/product.model.js";
 import VendorProduct from "../vendorProduct/vendorProduct.model.js";
+import Category from "../category/category.model.js";
+import Brand from "../brand/brand.model.js";
+import SubCategory from "../subCategory/subCategory.model.js";
 
 const notDeleted = { isDelete: { $ne: true } };
 
@@ -431,6 +434,42 @@ export const softDeleteSubAdmin = async (subAdminId) => {
     return deletedUser;
 };
 
+// ─── Admin profile (self) ─────────────────────────────────
+
+export const findAdminProfileById = async (userId) => {
+    const [adminRole, subAdminRole] = await Promise.all([
+        findRoleByName("ADMIN"),
+        findRoleByName("SUB_ADMIN"),
+    ]);
+
+    const roleIds = [adminRole?._id, subAdminRole?._id].filter(Boolean);
+    if (!roleIds.length) return null;
+
+    return await User.findOne({ _id: userId, role: { $in: roleIds } })
+        .select("-password -otp -otpExpiry -twoFactorSecret -coppyPassword")
+        .populate("role", "name")
+        .lean();
+};
+
+export const updateAdminProfile = async (userId, updateData) => {
+    const [adminRole, subAdminRole] = await Promise.all([
+        findRoleByName("ADMIN"),
+        findRoleByName("SUB_ADMIN"),
+    ]);
+
+    const roleIds = [adminRole?._id, subAdminRole?._id].filter(Boolean);
+    if (!roleIds.length) return null;
+
+    return await User.findOneAndUpdate(
+        { _id: userId, role: { $in: roleIds } },
+        { $set: updateData },
+        { new: true, runValidators: true }
+    )
+        .select("-password -otp -otpExpiry -twoFactorSecret -coppyPassword")
+        .populate("role", "name")
+        .lean();
+};
+
 // ─── Permissions ──────────────────────────────────────────
 
 export const createPermission = async (data) => {
@@ -514,6 +553,27 @@ export const findVendorListingsByProduct = async (productId) => {
         .populate("vendorId", "businessDetails ownerDetails status")
         .populate("warehouseId", "name address operatingHours")
         .sort({ sellingPrice: 1 })
+        .lean();
+};
+
+export const findActiveCategories = async () => {
+    return await Category.find({ isActive: true })
+        .select("_id name slug")
+        .sort({ name: 1 })
+        .lean();
+};
+
+export const findActiveBrands = async () => {
+    return await Brand.find({ isActive: true })
+        .select("_id name slug")
+        .sort({ name: 1 })
+        .lean();
+};
+
+export const findActiveSubCategoriesByCategory = async (categoryId) => {
+    return await SubCategory.find({ categoryId, isActive: true })
+        .select("_id name slug categoryId")
+        .sort({ displayOrder: 1, name: 1 })
         .lean();
 };
 

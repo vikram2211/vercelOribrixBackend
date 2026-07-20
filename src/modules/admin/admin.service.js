@@ -832,6 +832,76 @@ export const deleteSubAdmin_Services = async (subAdminId) => {
     return true;
 };
 
+// ─── Admin profile (self) ─────────────────────────────────
+
+const formatAdminProfile = (user) => ({
+    userId: user._id,
+    fullName: user.fullName || "",
+    email: user.email || "",
+    mobile: user.mobile || "",
+    photo: user.photo || "",
+    role: user.role?.name || "",
+    permissions: user.permissions || [],
+    isActive: user.isActive,
+    isVerified: user.isVerified,
+    lastLogin: user.lastLogin || null,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+});
+
+export const displayAdminProfile_Services = async (userId) => {
+    const user = await adminRepo.findAdminProfileById(userId);
+    if (!user) throw new ApiError(404, "Admin profile not found");
+    return formatAdminProfile(user);
+};
+
+export const editAdminProfile_Services = async (userId, data) => {
+    const existing = await adminRepo.findAdminProfileById(userId);
+    if (!existing) throw new ApiError(404, "Admin profile not found");
+
+    const updateData = {};
+
+    const name = data.fullName ?? data.name;
+    if (name !== undefined) {
+        const trimmedName = String(name).trim();
+        if (!trimmedName) throw new ApiError(400, "Full name cannot be empty");
+        updateData.fullName = trimmedName;
+    }
+
+    if (data.email !== undefined) {
+        const email = String(data.email).trim().toLowerCase();
+        if (!email) throw new ApiError(400, "Email cannot be empty");
+        const emailExists = await adminRepo.findUserByEmailExcludingId(
+            email,
+            userId
+        );
+        if (emailExists) throw new ApiError(400, "Email already in use");
+        updateData.email = email;
+    }
+
+    if (data.mobile !== undefined || data.phone !== undefined) {
+        const mobile = String(data.mobile ?? data.phone).trim();
+        if (mobile) {
+            const mobileExists = await adminRepo.findUserByMobileExcludingId(
+                mobile,
+                userId
+            );
+            if (mobileExists) throw new ApiError(400, "Mobile already in use");
+        }
+        updateData.mobile = mobile;
+    }
+
+    if (data.photo !== undefined) updateData.photo = String(data.photo);
+
+    if (Object.keys(updateData).length === 0) {
+        throw new ApiError(400, "No fields provided to update");
+    }
+
+    const updated = await adminRepo.updateAdminProfile(userId, updateData);
+    if (!updated) throw new ApiError(404, "Admin profile not found");
+    return formatAdminProfile(updated);
+};
+
 // ─── Permissions ──────────────────────────────────────────
 
 const formatPermission = (permission) => ({
@@ -1001,6 +1071,39 @@ const applyProductFields = (data, target) => {
         }
         target.isActive = data.isActive;
     }
+};
+
+export const displayCategories_Services = async () => {
+    const categories = await adminRepo.findActiveCategories();
+    return categories.map((c) => ({
+        id: c._id,
+        name: c.name || "",
+        slug: c.slug || "",
+    }));
+};
+
+export const displayBrands_Services = async () => {
+    const brands = await adminRepo.findActiveBrands();
+    return brands.map((b) => ({
+        id: b._id,
+        name: b.name || "",
+        slug: b.slug || "",
+    }));
+};
+
+export const displaySubCategories_Services = async (categoryId) => {
+    if (!categoryId) throw new ApiError(400, "categoryId is required");
+    assertObjectId(categoryId, "categoryId");
+
+    const subCategories = await adminRepo.findActiveSubCategoriesByCategory(
+        categoryId
+    );
+    return subCategories.map((s) => ({
+        id: s._id,
+        name: s.name || "",
+        slug: s.slug || "",
+        categoryId: s.categoryId,
+    }));
 };
 
 export const displayProducts_Services = async ({
@@ -1193,6 +1296,18 @@ export const editProductDetails_Services = async (productId, data) => {
 
 export const deleteProduct_Services = async (productId) => {
     assertObjectId(productId, "product id");
+
+    const existing = await adminRepo.findProductById(productId);
+    if (!existing) throw new ApiError(404, "Product not found");
+
+    const listings = await adminRepo.findVendorListingsByProduct(productId);
+    if (listings.length > 0) {
+        throw new ApiError(
+            400,
+            "Cannot delete product. One or more vendors have listed this product."
+        );
+    }
+
     const deleted = await adminRepo.deleteProductById(productId);
     if (!deleted) throw new ApiError(404, "Product not found");
     return true;

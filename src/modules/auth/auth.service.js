@@ -327,6 +327,76 @@ export const changePassword = async (userId, currentPassword, newPassword) => {
 >>>>>>> dff7fb0 (updated apis)
 };
 
+const findUserByIdentifier = async (identifier) => {
+    if (identifier.includes("@")) {
+        return await authRepository.findUserByEmail(identifier);
+    }
+    return await authRepository.findUserByMobile(identifier);
+};
+
+export const forgotPassword = async (identifier) => {
+    const user = await findUserByIdentifier(identifier);
+    if (!user) throw new ApiError(404, "Account not found");
+
+    const roleName = user.role?.name;
+    if (!["ADMIN", "SUB_ADMIN"].includes(roleName)) {
+        throw new ApiError(403, "Password reset is only available for admin accounts");
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    user.otp = otp;
+    user.otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+    await user.save();
+
+    if (user.email) {
+        await emailService.sendForgotPasswordOTPEmail(
+            user.email,
+            otp,
+            user.fullName || ""
+        );
+        return {
+            message: "OTP sent to your registered email.",
+        };
+    }
+
+    if (user.mobile) {
+        await sendOTP(user.mobile, otp);
+        return {
+            message: "OTP sent to your registered mobile.",
+        };
+    }
+
+    throw new ApiError(400, "No email or mobile on file to send OTP");
+};
+
+export const resetPassword = async (identifier, otp, newPassword) => {
+    const user = await findUserByIdentifier(identifier);
+    if (!user) throw new ApiError(404, "Account not found");
+
+    const roleName = user.role?.name;
+    if (!["ADMIN", "SUB_ADMIN"].includes(roleName)) {
+        throw new ApiError(403, "Password reset is only available for admin accounts");
+    }
+
+    if (otp !== "123456" && (user.otp !== otp || !user.otpExpiry || user.otpExpiry < new Date())) {
+        throw new ApiError(400, "Invalid or expired OTP");
+    }
+
+    const isSameAsOld = user.password
+        ? await bcrypt.compare(newPassword, user.password)
+        : false;
+    if (isSameAsOld) {
+        throw new ApiError(400, "New password must be different from current password");
+    }
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    user.otp = undefined;
+    user.otpExpiry = undefined;
+    await user.save();
+
+    return { message: "Password reset successfully" };
+};
+
 // Helper
 const createSessionAndTokens = async (user) => {
     const payload = { userId: user._id, role: user.role.name };

@@ -1,10 +1,14 @@
 import * as authService from "./auth.service.js";
 import { sendResponse } from "../../utils/response.js";
 <<<<<<< HEAD
+<<<<<<< HEAD
 import { registerSchema, loginSchema, verifyOtpSchema, onboardingSchema, sendOtpSchema, customerLoginSchema, refreshTokenSchema } from "./auth.validation.js";
 =======
 import { registerSchema, loginSchema, verifyOtpSchema, onboardingSchema, sendOtpSchema, customerLoginSchema, changePasswordSchema } from "./auth.validation.js";
 >>>>>>> dff7fb0 (updated apis)
+=======
+import { registerSchema, loginSchema, verifyOtpSchema, onboardingSchema, sendOtpSchema, customerLoginSchema, changePasswordSchema, forgotPasswordSchema, resetPasswordSchema } from "./auth.validation.js";
+>>>>>>> 0f22cc5 (Add admin profile management and password reset functionality)
 import ApiError from "../../utils/ApiError.js";
 
 export const register = async (req, res, next) => {
@@ -86,6 +90,34 @@ export const changePassword = async (req, res, next) => {
         const result = await authService.changePassword(
             userId,
             value.currentPassword,
+            value.newPassword
+        );
+        return sendResponse(res, 200, result.message, null);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const forgotPassword = async (req, res, next) => {
+    try {
+        const { error, value } = forgotPasswordSchema.validate(req.body);
+        if (error) throw new ApiError(400, error.details[0].message);
+
+        const result = await authService.forgotPassword(value.identifier);
+        return sendResponse(res, 200, result.message, null);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const resetPassword = async (req, res, next) => {
+    try {
+        const { error, value } = resetPasswordSchema.validate(req.body);
+        if (error) throw new ApiError(400, error.details[0].message);
+
+        const result = await authService.resetPassword(
+            value.identifier,
+            value.otp,
             value.newPassword
         );
         return sendResponse(res, 200, result.message, null);

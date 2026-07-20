@@ -10,7 +10,10 @@ import {
     deleteProduct,
     deleteSubAdmin,
     deleteVendor,
+    displayAdminProfile,
     displayAllWarehousesByVendor,
+    displayBrands,
+    displayCategories,
     displayCustomerDetails,
     displayCustomers,
     displayPermissions,
@@ -18,9 +21,11 @@ import {
     displayProducts,
     displaySubAdminDetails,
     displaySubAdmins,
+    displaySubCategories,
     displayVendorDetails,
     displayVendors,
     displayVendorsApplication,
+    editAdminProfile,
     editCustomerDetails,
     editPermission,
     editProductDetails,
@@ -33,6 +38,9 @@ export const AdminPermissions = {
     ADMIN: "ADMIN",
     SUB_ADMIN: "SUB_ADMIN",
 };
+
+router.get("/v1/admin/profile", authenticate, authorize(AdminPermissions), displayAdminProfile);
+router.patch("/v1/admin/profile", authenticate, authorize(AdminPermissions), editAdminProfile);
 
 // vendor routes ==================
 router.get(
@@ -115,10 +123,24 @@ router.patch("/v1/permission/:id", authenticate, authorize("ADMIN"), editPermiss
 router.delete("/v1/permission/:id", authenticate, authorize("ADMIN"), deletePermission);
 
 
+// catalog lookup routes ==================
+router.get("/v1/categories", authenticate, authorize(AdminPermissions), displayCategories);
+router.get("/v1/brands", authenticate, authorize(AdminPermissions), displayBrands);
+router.get("/v1/sub-categories", authenticate, authorize(AdminPermissions), displaySubCategories);
+
 // productRoutes ==================
 router.get("/v1/products", authenticate, authorize(AdminPermissions), displayProducts);
 router.get("/v1/product/:id", authenticate, authorize(AdminPermissions), displayProductDetails);
-router.post("/v1/product", authenticate, authorize("ADMIN"), createProduct);
+router.post(
+    "/v1/product",
+    authenticate,
+    authorize("ADMIN"),
+    uploadProduct.fields([
+        { name: "thumbnail", maxCount: 1 },
+        { name: "images", maxCount: 10 },
+    ]),
+    createProduct
+);
 router.patch(
     "/v1/product/:id",
     authenticate,

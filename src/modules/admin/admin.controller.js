@@ -11,22 +11,41 @@ import {
     deleteSubAdmin_Services,
     deleteVendor_Services,
     displayAllWarehousesByVendor_Services,
+    displayBrands_Services,
+    displayCategories_Services,
     displayCustomerDetails_Services,
     displayCustomers_Services,
     displayPermissions_Services,
     displayProductDetails_Services,
     displayProducts_Services,
+    displayAdminProfile_Services,
     displaySubAdminDetails_Services,
     displaySubAdmins_Services,
+    displaySubCategories_Services,
     displayVendorDetails_Services,
     displayVendorsApplication_Services,
     displayVendors_Services,
+    editAdminProfile_Services,
     editCustomerDetails_Services,
     editPermission_Services,
     editProductDetails_Services,
     editSubAdminDetails_Services,
     editVendorDetails_Services,
 } from "./admin.service.js";
+
+// ─── Admin profile (self) ─────────────────────────────────
+
+export const displayAdminProfile = asyncHandler(async (req, res) => {
+    const result = await displayAdminProfile_Services(req.user.userId);
+
+    return sendResponse(res, 200, "Profile fetched successfully", result);
+});
+
+export const editAdminProfile = asyncHandler(async (req, res) => {
+    const result = await editAdminProfile_Services(req.user.userId, req.body);
+
+    return sendResponse(res, 200, "Profile updated successfully", result);
+});
 
 // ─── Vendor ───────────────────────────────────────────────
 
@@ -218,6 +237,23 @@ export const deletePermission = asyncHandler(async (req, res) => {
     return sendResponse(res, 200, "Permission deleted successfully");
 });
 
+// ─── Catalog lookups ──────────────────────────────────────
+
+export const displayCategories = asyncHandler(async (req, res) => {
+    const result = await displayCategories_Services();
+    return sendResponse(res, 200, "Categories fetched successfully", result);
+});
+
+export const displayBrands = asyncHandler(async (req, res) => {
+    const result = await displayBrands_Services();
+    return sendResponse(res, 200, "Brands fetched successfully", result);
+});
+
+export const displaySubCategories = asyncHandler(async (req, res) => {
+    const result = await displaySubCategories_Services(req.query.categoryId);
+    return sendResponse(res, 200, "Sub-categories fetched successfully", result);
+});
+
 // ─── Products ─────────────────────────────────────────────
 
 export const displayProducts = asyncHandler(async (req, res) => {
@@ -250,7 +286,22 @@ export const displayProductDetails = asyncHandler(async (req, res) => {
 });
 
 export const createProduct = asyncHandler(async (req, res) => {
-    const result = await createProduct_Services(req.body);
+    const data = { ...req.body };
+
+    // multipart/form-data sends booleans as strings
+    if (typeof data.isActive === "string") {
+        data.isActive = data.isActive === "true";
+    }
+
+    if (req.files?.thumbnail?.[0]) {
+        data.thumbnail = req.files.thumbnail[0].path;
+    }
+
+    if (req.files?.images?.length) {
+        data.images = req.files.images.map((f) => f.path);
+    }
+
+    const result = await createProduct_Services(data);
 
     return sendResponse(res, 201, "Product created successfully", result);
 });

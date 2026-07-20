@@ -1,5 +1,9 @@
 import nodemailer from "nodemailer";
 import dotenv from "dotenv";
+import {
+    forgotPasswordEmailHtml,
+    forgotPasswordEmailSubject,
+} from "./emailTemplates/forgotPasswordEmail.js";
 
 dotenv.config();
 
@@ -104,5 +108,23 @@ export const sendGenericOTPEmail = async (email, otp) => {
         console.log("Admin OTP email sent: %s", info.messageId);
     } catch (error) {
         console.error("Error sending generic OTP email:", error);
+    }
+};
+
+/** Forgot-password OTP — uses dedicated template file */
+export const sendForgotPasswordOTPEmail = async (email, otp, fullName = "") => {
+    try {
+        const mailOptions = {
+            from: `"OriBrix Security" <${process.env.SMTP_USER}>`,
+            to: email,
+            subject: forgotPasswordEmailSubject,
+            html: forgotPasswordEmailHtml({ otp, fullName }),
+        };
+
+        const info = await transporter.sendMail(mailOptions);
+        console.log("Forgot password OTP email sent: %s", info.messageId);
+    } catch (error) {
+        console.error("Error sending forgot password OTP email:", error);
+        throw error;
     }
 };
