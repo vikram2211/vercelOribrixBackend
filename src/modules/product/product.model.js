@@ -24,7 +24,18 @@ const productSchema = new Schema(
             ref: "Brand",
             required: true
         },
+        sku: {
+            type: String,
+            unique: true,
+            required: true,
+            trim: true
+        },
         name: {
+            type: String,
+            required: true,
+            trim: true
+        },
+        unit: {
             type: String,
             required: true,
             trim: true
@@ -54,18 +65,8 @@ const productSchema = new Schema(
         gstPercentage: {
             type: Number
         },
-        warranty: {
-            type: String
-        },
-        returnPolicy: {
-            type: String
-        },
-        seoTitle: {
-            type: String
-        },
-        seoDescription: {
-            type: String
-        },
+
+
         isActive: {
             type: Boolean,
             default: true

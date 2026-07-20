@@ -52,3 +52,7 @@ export const onboardingSchema = Joi.object({
         .items(Joi.string().valid("UPI", "Card", "EMI via PG", "COD"))
         .optional()
 });
+
+export const refreshTokenSchema = Joi.object({
+    refreshToken: Joi.string().required()
+});

@@ -19,10 +19,7 @@ const vendorProductSchema = new Schema(
             ref: "Warehouse", // Assuming you'll create a standalone Warehouse model soon
             required: false   // Make true once Warehouse module is fully ready
         },
-        vendorSku: {
-            type: String,
-            trim: true
-        },
+
         mrp: {
             type: Number,
             required: true,
@@ -37,6 +34,12 @@ const vendorProductSchema = new Schema(
             type: Number,
             default: 1,
             min: 1
+        },
+        warranty: {
+            type: String
+        },
+        returnPolicy: {
+            type: String
         },
         stockQuantity: {
             type: Number,

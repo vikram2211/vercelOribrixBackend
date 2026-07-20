@@ -4,8 +4,8 @@ export const createListing = async (data) => {
     return await VendorProduct.create(data);
 };
 
-export const findListingsByVendor = async (vendorId) => {
-    return await VendorProduct.find({ vendorId })
+export const findListingsByVendor = async (vendorId, { skip, limit } = {}) => {
+    let query = VendorProduct.find({ vendorId })
         .populate({
             path: 'productId',
             select: 'name slug thumbnail images hsnCode gstPercentage categoryId brandId',
@@ -14,7 +14,17 @@ export const findListingsByVendor = async (vendorId) => {
                 { path: 'categoryId', select: 'name' }
             ]
         })
+        .populate('warehouseId', 'name')
         .sort({ createdAt: -1 });
+
+    if (skip !== undefined && limit !== undefined) {
+        query = query.skip(skip).limit(limit);
+    }
+    return await query;
+};
+
+export const countListingsByVendor = async (vendorId) => {
+    return await VendorProduct.countDocuments({ vendorId });
 };
 
 export const findListingByIdAndVendor = async (id, vendorId) => {

@@ -25,6 +25,15 @@ router.use("/coupon", couponRouter);
 router.use("/v1/sub-category", subCategoryRoutes);
 router.use("/product", productRoutes);
 
+import unitRoutes from "../modules/unit/unit.routes.js";
+router.use("/v1/units", unitRoutes);
+
+// Brand & Attribute Routes
+import brandRoutes from "../modules/brand/brand.routes.js";
+import attributeRoutes from "../modules/attribute/attribute.routes.js";
+router.use("/v1/brands", brandRoutes);
+router.use("/v1/attributes", attributeRoutes);
+
 router.use("/admin", adminRouter);
 
 // Vendor Inventory & Logistics Routes

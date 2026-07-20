@@ -11,5 +11,6 @@ router.post("/send-otp", authController.sendOtp);
 router.post("/login", authController.login);
 router.post("/customer-login", authController.customerLogin);
 router.post("/onboard", authenticate, authController.onboard); // Protected: requires valid JWT
+router.post("/refresh-token", authController.refreshToken);
 
 export default router;

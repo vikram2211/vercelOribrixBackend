@@ -1,6 +1,6 @@
 import * as authService from "./auth.service.js";
 import { sendResponse } from "../../utils/response.js";
-import { registerSchema, loginSchema, verifyOtpSchema, onboardingSchema, sendOtpSchema, customerLoginSchema } from "./auth.validation.js";
+import { registerSchema, loginSchema, verifyOtpSchema, onboardingSchema, sendOtpSchema, customerLoginSchema, refreshTokenSchema } from "./auth.validation.js";
 import ApiError from "../../utils/ApiError.js";
 
 export const register = async (req, res, next) => {
@@ -78,6 +78,21 @@ export const customerLogin = async (req, res, next) => {
 
         const result = await authService.loginCustomer(value.identifier, value.password, value.otp);
         return sendResponse(res, 200, result.message, result);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const refreshToken = async (req, res, next) => {
+    try {
+        const { error, value } = refreshTokenSchema.validate(req.body);
+        if (error) throw new ApiError(400, error.details[0].message);
+
+        const result = await authService.refreshTokens(value.refreshToken);
+        return sendResponse(res, 200, result.message, {
+            accessToken: result.accessToken,
+            refreshToken: result.refreshToken
+        });
     } catch (error) {
         next(error);
     }

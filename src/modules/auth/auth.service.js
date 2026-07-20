@@ -3,7 +3,7 @@ import User from "../user/user.model.js";
 import CustomerProfile from "../customerProfile/customerProfile.model.js";
 import Vendor from "../vendor/vendor.model.js";
 import * as authRepository from "./auth.repository.js";
-import { generateAccessToken, generateRefreshToken } from "../../utils/jwt.js";
+import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "../../utils/jwt.js";
 import { sendOTP } from "../../services/sms.service.js";
 import * as emailService from "../../services/email.service.js";
 import ApiError from "../../utils/ApiError.js";
@@ -265,6 +265,39 @@ export const loginCustomer = async (identifier, password, otp) => {
             role: user.role.name,
             onboardingComplete
         },
+        ...tokens
+    };
+};
+
+export const refreshTokens = async (refreshToken) => {
+    // Verify token structure and signature
+    let decoded;
+    try {
+        decoded = verifyRefreshToken(refreshToken);
+    } catch (err) {
+        throw new ApiError(401, "Refresh token is invalid or expired");
+    }
+
+    // Check if token exists in database (session)
+    const session = await authRepository.findSessionByToken(refreshToken);
+    if (!session) {
+        throw new ApiError(401, "Refresh token not found or already used");
+    }
+
+    // Get user
+    const user = await User.findById(decoded.userId).populate("role");
+    if (!user) {
+        throw new ApiError(404, "User not found");
+    }
+
+    // Revoke old session to implement token rotation
+    await authRepository.deleteSession(refreshToken);
+
+    // Create new tokens
+    const tokens = await createSessionAndTokens(user);
+
+    return {
+        message: "Tokens refreshed successfully",
         ...tokens
     };
 };

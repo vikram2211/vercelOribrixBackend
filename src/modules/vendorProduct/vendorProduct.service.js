@@ -1,11 +1,32 @@
 import * as vendorProductRepo from "./vendorProduct.repository.js";
 import Product from "../product/product.model.js";
+import { addProduct } from "../product/product.service.js";
 import Cart from "../cart/cart.model.js";
+import Category from "../category/category.model.js";
+import SubCategory from "../subCategory/subCategory.model.js";
+import Brand from "../brand/brand.model.js";
+import Warehouse from "../warehouse/warehouse.model.js";
+import Attribute from "../attribute/attribute.model.js";
+import AttributeValue from "../attributeValue/attributeValue.model.js";
+import Unit from "../unit/unit.model.js";
 import ApiError from "../../utils/ApiError.js";
 
 export const addVendorListing = async (vendorId, listingData) => {
-    if (!vendorId || !listingData.productId) {
-        throw new ApiError(400, "Vendor ID and Product ID are required");
+    let finalProductId = listingData.productId;
+
+    // If the vendor is creating a brand new Master Product
+    if (listingData.createNewMaster && listingData.masterData) {
+        // Enforce that vendor-created master products are hidden until admin approval
+        const masterPayload = {
+            ...listingData.masterData,
+            isActive: false
+        };
+        const newMaster = await addProduct(masterPayload);
+        finalProductId = newMaster._id;
+    }
+
+    if (!vendorId || !finalProductId) {
+        throw new ApiError(400, "Vendor ID and Product ID (or new Master Data) are required");
     }
 
     if (listingData.sellingPrice > listingData.mrp) {
@@ -13,10 +34,16 @@ export const addVendorListing = async (vendorId, listingData) => {
     }
 
     try {
-        const newListing = await vendorProductRepo.createListing({
+        const vendorProductPayload = {
             ...listingData,
+            productId: finalProductId, // Guarantee we use the right ID
             vendorId
-        });
+        };
+        // Clean up fields that don't belong in vendorProduct schema (e.g., masterData, createNewMaster)
+        delete vendorProductPayload.masterData;
+        delete vendorProductPayload.createNewMaster;
+
+        const newListing = await vendorProductRepo.createListing(vendorProductPayload);
 
         // Return populated version explicitly safely
         return newListing;
@@ -28,8 +55,129 @@ export const addVendorListing = async (vendorId, listingData) => {
     }
 };
 
-export const getVendorListings = async (vendorId) => {
-    return await vendorProductRepo.findListingsByVendor(vendorId);
+export const bulkAddVendorListings = async (vendorId, products) => {
+    const results = { successful: 0, failed: 0, errors: [] };
+
+    for (const [index, row] of products.entries()) {
+        try {
+            // 1. Resolve Warehouse purely by Vendor's string name input
+            if (!row.WarehouseName) throw new Error("WarehouseName is required");
+            const warehouse = await Warehouse.findOne({ vendorId, name: { $regex: new RegExp(`^${row.WarehouseName.trim()}$`, 'i') } });
+            if (!warehouse) throw new Error(`Warehouse '${row.WarehouseName}' not found for your account`);
+
+            let finalProductId = row.MasterProductId;
+
+            // 2. If no explicit MasterProductId, we resolve strings to create/find Master Product
+            if (!finalProductId) {
+                if (!row.ProductName || !row.CategoryName || !row.BrandName || !row.MRP || !row.SellingPrice || !row.StockQuantity || !row.Unit) {
+                    throw new Error("Missing required fields for product mapping (ProductName, CategoryName, BrandName, Unit, MRP, SellingPrice, Stock)");
+                }
+
+                // Check if a Master already exists by exactly this name
+                let existingMaster = await Product.findOne({ name: { $regex: new RegExp(`^${row.ProductName.trim()}$`, 'i') } });
+
+                if (existingMaster) {
+                    finalProductId = existingMaster._id;
+                } else {
+                    // Start Deep Resolution for a brand new Master
+                    const category = await Category.findOne({ name: { $regex: new RegExp(`^${row.CategoryName.trim()}$`, 'i') } });
+                    if (!category) throw new Error(`Category '${row.CategoryName}' not found in system`);
+
+                    const brand = await Brand.findOne({ name: { $regex: new RegExp(`^${row.BrandName.trim()}$`, 'i') } });
+                    if (!brand) throw new Error(`Brand '${row.BrandName}' not found in system`);
+
+                    const unitStr = row.Unit.trim();
+                    const unitDb = await Unit.findOne({ name: { $regex: new RegExp(`^${unitStr}$`, 'i') } });
+                    if (!unitDb) throw new Error(`Unit '${unitStr}' not found in system. Please use a standard unit name.`);
+
+                    let subCategoryId = null;
+                    if (row.SubCategoryName) {
+                        const subcat = await SubCategory.findOne({ name: { $regex: new RegExp(`^${row.SubCategoryName.trim()}$`, 'i') }, categoryId: category._id });
+                        if (!subcat) throw new Error(`SubCategory '${row.SubCategoryName}' not found under matching Category`);
+                        subCategoryId = subcat._id;
+                    }
+
+                    // Process Attribute mappings dynamically based on generic CSV columns
+                    const attributeValueIds = [];
+                    const maxAttributesToScan = 5; // Support up to 5 pairs
+                    for (let i = 1; i <= maxAttributesToScan; i++) {
+                        const attrNameKeys = [`Attribute${i}_Name`, `Attribute ${i} Name`];
+                        const attrValKeys = [`Attribute${i}_Value`, `Attribute ${i} Value`];
+
+                        let attrNameStr = null;
+                        let attrValStr = null;
+
+                        for (const key of attrNameKeys) if (row[key]) attrNameStr = row[key].trim();
+                        for (const key of attrValKeys) if (row[key]) attrValStr = row[key].trim();
+
+                        if (attrNameStr && attrValStr) {
+                            // 1. Find the Attribute in this category
+                            const attrDb = await Attribute.findOne({ categoryId: category._id, name: { $regex: new RegExp(`^${attrNameStr}$`, 'i') } });
+                            if (attrDb) {
+                                // 2. Find the Attribute Value mapping to this Attribute
+                                const valDb = await AttributeValue.findOne({ attributeId: attrDb._id, value: { $regex: new RegExp(`^${attrValStr}$`, 'i') } });
+                                if (valDb) {
+                                    attributeValueIds.push(valDb._id);
+                                }
+                            }
+                        }
+                    }
+
+                    // Dynamically create the new Master (pending approval) using the shared service to auto-generate slugs!
+                    const newMaster = await addProduct({
+                        name: row.ProductName.trim(),
+                        unit: unitDb.name, // Use the proper DB-normalized unit name
+                        categoryId: category._id,
+                        subCategoryId: subCategoryId,
+                        brandId: brand._id,
+                        hsnCode: row.HSN || null,
+                        gstPercentage: row.GST || 18,
+                        attributeValueIds,
+                        isActive: false
+                    });
+                    finalProductId = newMaster._id;
+                }
+            }
+
+            // 3. Create the unique Vendor Product listing joining the Master and Warehouse
+            await vendorProductRepo.createListing({
+                vendorId,
+                productId: finalProductId,
+                warehouseId: warehouse._id,
+                mrp: Number(row.MRP),
+                sellingPrice: Number(row.SellingPrice),
+                stockQuantity: Number(row.StockQuantity),
+                minOrderQuantity: Number(row.MinOrderQty) || 1,
+                warranty: row.Warranty || '',
+                returnPolicy: row.ReturnPolicy || ''
+            });
+
+            results.successful++;
+        } catch (err) {
+            if (err.code === 11000) {
+                results.errors.push(`Row ${index + 2}: Duplicate listing - You already have this product at this warehouse.`);
+            } else {
+                results.errors.push(`Row ${index + 2} (${row.ProductName || row.MasterProductId || 'Unknown'}): ${err.message}`);
+            }
+            results.failed++;
+        }
+    }
+    return results;
+};
+
+export const getVendorListings = async (vendorId, { page = 1, limit = 10, skip = 0 } = {}) => {
+    const listings = await vendorProductRepo.findListingsByVendor(vendorId, { skip, limit });
+    const total = await vendorProductRepo.countListingsByVendor(vendorId);
+
+    return {
+        listings,
+        pagination: {
+            page: Number(page),
+            limit: Number(limit),
+            total,
+            totalPages: Math.ceil(total / limit) || 0
+        }
+    };
 };
 
 export const getListingDetails = async (listingId, userId) => {

@@ -1,17 +1,54 @@
 import * as vendorProductService from "./vendorProduct.service.js";
 import { sendResponse } from "../../utils/response.js";
 import pagination from "../../utils/pagination.js";
+import Vendor from "../vendor/vendor.model.js";
 
-// We extract vendorId either from JWT req.user.vendorId OR req.body.vendorId for flexibility during testing
-const getVendorId = (req) => {
-    return req.user?.vendorId || req.body.vendorId || req.query.vendorId;
+// We extract vendorId either from DB (via JWT userId) OR req.body.vendorId for flexibility
+const getVendorId = async (req) => {
+    if (req.user?.userId) {
+        const vendor = await Vendor.findOne({ ownerId: req.user.userId }).select("_id");
+        if (vendor) return vendor._id.toString();
+    }
+    return req.body.vendorId || req.query.vendorId;
 };
 
 export const createListing = async (req, res, next) => {
     try {
-        const vendorId = getVendorId(req);
-        const listing = await vendorProductService.addVendorListing(vendorId, req.body);
+        const vendorId = await getVendorId(req);
+
+        let payload = { ...req.body };
+
+        // Handle FormData string conversions
+        if (payload.createNewMaster === 'true') payload.createNewMaster = true;
+        if (payload.createNewMaster === 'false') payload.createNewMaster = false;
+
+        // Parse stringified masterData
+        if (typeof payload.masterData === 'string') {
+            payload.masterData = JSON.parse(payload.masterData);
+        }
+
+        // Attach uploaded image path to masterData if present
+        if (req.file && req.file.path && payload.masterData) {
+            payload.masterData.thumbnail = req.file.path;
+        }
+
+        const listing = await vendorProductService.addVendorListing(vendorId, payload);
         return sendResponse(res, 201, "Product listed successfully", listing);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const bulkCreateListings = async (req, res, next) => {
+    try {
+        const vendorId = await getVendorId(req);
+
+        if (!req.body.products || !Array.isArray(req.body.products)) {
+            return res.status(400).json({ success: false, message: "A products array is required" });
+        }
+
+        const result = await vendorProductService.bulkAddVendorListings(vendorId, req.body.products);
+        return sendResponse(res, 201, "Bulk upload completed", result);
     } catch (error) {
         next(error);
     }
@@ -19,9 +56,10 @@ export const createListing = async (req, res, next) => {
 
 export const getListings = async (req, res, next) => {
     try {
-        const vendorId = getVendorId(req);
-        const listings = await vendorProductService.getVendorListings(vendorId);
-        return sendResponse(res, 200, "Your listings retrieved successfully", listings);
+        const vendorId = await getVendorId(req);
+        const { page, limit, skip } = pagination(req.query);
+        const result = await vendorProductService.getVendorListings(vendorId, { page, limit, skip });
+        return sendResponse(res, 200, "Your listings retrieved successfully", result);
     } catch (error) {
         next(error);
     }
@@ -53,7 +91,7 @@ export const getListingDetails = async (req, res, next) => {
 
 export const updateListing = async (req, res, next) => {
     try {
-        const vendorId = getVendorId(req);
+        const vendorId = await getVendorId(req);
         const listingId = req.params.id;
         const updatedListing = await vendorProductService.updateVendorListing(listingId, vendorId, req.body);
         return sendResponse(res, 200, "Listing updated successfully", updatedListing);
@@ -64,7 +102,7 @@ export const updateListing = async (req, res, next) => {
 
 export const deleteListing = async (req, res, next) => {
     try {
-        const vendorId = getVendorId(req);
+        const vendorId = await getVendorId(req);
         await vendorProductService.deleteVendorListing(req.params.id, vendorId);
         return sendResponse(res, 200, "Listing removed successfully");
     } catch (error) {

@@ -91,5 +91,26 @@ export const updateKYCDocuments = async (vendorId, files) => {
 };
 
 export const getVendorProfile = async (userId) => {
-    return await vendorRepo.findVendorByOwnerId(userId);
+    const vendor = await vendorRepo.findVendorByOwnerId(userId);
+    if (!vendor) return null;
+
+    // Fetch the primary warehouse for this vendor to hydrate the frontend form
+    const warehouses = await warehouseService.getWarehouses(vendor._id);
+    let warehouseDetails = null;
+
+    if (warehouses && warehouses.length > 0) {
+        // Map warehouse data back into the shape expected by the frontend formData
+        warehouseDetails = {
+            warehouseName: warehouses[0].name,
+            storageCapacity: warehouses[0].capacity?.toString(),
+            address: warehouses[0].address,
+            operatingHours: warehouses[0].operatingHours
+        };
+    }
+
+    // Convert Mongoose document to plain object to inject warehouse details
+    const vendorObj = vendor.toObject();
+    vendorObj.warehouseDetails = warehouseDetails;
+
+    return vendorObj;
 };

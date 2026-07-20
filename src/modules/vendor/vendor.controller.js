@@ -25,7 +25,7 @@ export const uploadKYC = async (req, res, next) => {
 
 export const getStatus = async (req, res, next) => {
     try {
-        const userId = req.body.userId || req.params.userId; // Mock auth for now
+        const userId = req.body?.userId || req.params?.userId; // Mock auth for now
         const vendor = await vendorService.getVendorProfile(userId);
         if (!vendor) throw new ApiError(404, "Vendor profile not found");
 
