@@ -124,8 +124,15 @@ export const bulkAddVendorListings = async (vendorId, products) => {
                     }
 
                     // Dynamically create the new Master (pending approval) using the shared service to auto-generate slugs!
+                    const imagesArray = row.ProductImages ? row.ProductImages.split(',').map(img => img.trim()).filter(Boolean) : [];
+
                     const newMaster = await addProduct({
                         name: row.ProductName.trim(),
+                        description: row.ProductDescription || '',
+                        images: imagesArray,
+                        thumbnail: imagesArray.length > 0 ? imagesArray[0] : null,
+                        weight: row.Weight || null,
+                        countryOfOrigin: row.CountryOfOrigin || 'India',
                         unit: unitDb.name, // Use the proper DB-normalized unit name
                         categoryId: category._id,
                         subCategoryId: subCategoryId,
@@ -140,12 +147,19 @@ export const bulkAddVendorListings = async (vendorId, products) => {
             }
 
             // 3. Create the unique Vendor Product listing joining the Master and Warehouse
+            const isCod = row.CODAvailable && String(row.CODAvailable).trim().toLowerCase() === 'yes';
+            const priceType = row.PriceType && String(row.PriceType).trim().toLowerCase().includes('inclusive')
+                ? "Inclusive of GST"
+                : "Exclusive of GST";
+
             await vendorProductRepo.createListing({
                 vendorId,
                 productId: finalProductId,
                 warehouseId: warehouse._id,
                 mrp: Number(row.MRP),
                 sellingPrice: Number(row.SellingPrice),
+                priceType,
+                isCodAvailable: isCod,
                 stockQuantity: Number(row.StockQuantity),
                 minOrderQuantity: Number(row.MinOrderQty) || 1,
                 warranty: row.Warranty || '',
@@ -165,9 +179,12 @@ export const bulkAddVendorListings = async (vendorId, products) => {
     return results;
 };
 
-export const getVendorListings = async (vendorId, { page = 1, limit = 10, skip = 0 } = {}) => {
-    const listings = await vendorProductRepo.findListingsByVendor(vendorId, { skip, limit });
-    const total = await vendorProductRepo.countListingsByVendor(vendorId);
+export const getVendorListings = async (vendorId, { page = 1, limit = 10, skip = 0, warehouseId } = {}) => {
+    const filters = {};
+    if (warehouseId) filters.warehouseId = warehouseId;
+
+    const listings = await vendorProductRepo.findListingsByVendor(vendorId, { skip, limit, filters });
+    const total = await vendorProductRepo.countListingsByVendor(vendorId, filters);
 
     return {
         listings,

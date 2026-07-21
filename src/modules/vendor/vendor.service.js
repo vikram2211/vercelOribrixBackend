@@ -66,11 +66,60 @@ export const registerVendor = async (vendorData) => {
             capacity: warehouseDetails.storageCapacity,
             address: warehouseDetails.address,
             operatingHours: warehouseDetails.operatingHours,
+            latitude: warehouseDetails.latitude,
+            longitude: warehouseDetails.longitude,
+            vehicleAccess: warehouseDetails.vehicleAccess,
             isActive: true
         });
     }
 
     return { owner, vendor };
+};
+
+export const modifyVendorData = async (vendorId, vendorData) => {
+    const { businessDetails, ownerDetails, bankDetails, warehouseDetails, productCategories } = vendorData;
+
+    const vendor = await vendorRepo.findVendorById(vendorId);
+    if (!vendor) throw new ApiError(404, "Vendor not found");
+
+    if (businessDetails) vendor.businessDetails = businessDetails;
+    if (ownerDetails) vendor.ownerDetails = ownerDetails;
+    if (bankDetails) vendor.bankDetails = bankDetails;
+    if (productCategories) vendor.productCategories = productCategories;
+
+    await vendorRepo.saveVendor(vendor);
+
+    // Update root User table if owner details are patched
+    if (ownerDetails && ownerDetails.email && ownerDetails.mobile) {
+        const { email, mobile, fullName } = ownerDetails;
+
+        // Prevent claiming a phone/email used by another totally different owner
+        const existingUser = await vendorRepo.findUserByEmailOrPhone(email, mobile);
+        if (existingUser && existingUser._id.toString() !== vendor.ownerId.toString()) {
+            throw new ApiError(400, "Another user is already using this email or mobile");
+        }
+
+        const User = (await import("../user/user.model.js")).default;
+        await User.findByIdAndUpdate(vendor.ownerId, { email, mobile, fullName: fullName || "Vendor Owner" });
+    }
+
+    // Update their primary warehouse
+    if (warehouseDetails && warehouseDetails.warehouseName) {
+        const warehouses = await warehouseService.getWarehouses(vendor._id);
+        if (warehouses && warehouses.length > 0) {
+            await warehouseService.editWarehouse(warehouses[0]._id, vendor._id, {
+                name: warehouseDetails.warehouseName,
+                capacity: warehouseDetails.storageCapacity,
+                address: warehouseDetails.address,
+                operatingHours: warehouseDetails.operatingHours,
+                latitude: warehouseDetails.latitude,
+                longitude: warehouseDetails.longitude,
+                vehicleAccess: warehouseDetails.vehicleAccess
+            });
+        }
+    }
+
+    return vendor;
 };
 
 export const updateKYCDocuments = async (vendorId, files) => {
@@ -104,7 +153,10 @@ export const getVendorProfile = async (userId) => {
             warehouseName: warehouses[0].name,
             storageCapacity: warehouses[0].capacity?.toString(),
             address: warehouses[0].address,
-            operatingHours: warehouses[0].operatingHours
+            operatingHours: warehouses[0].operatingHours,
+            latitude: warehouses[0].latitude,
+            longitude: warehouses[0].longitude,
+            vehicleAccess: warehouses[0].vehicleAccess
         };
     }
 

@@ -55,6 +55,13 @@ const productSchema = new Schema(
         images: [{
             type: String
         }],
+        weight: {
+            type: Number
+        },
+        countryOfOrigin: {
+            type: String,
+            trim: true
+        },
         attributeValueIds: [{
             type: Schema.Types.ObjectId,
             ref: "AttributeValue"

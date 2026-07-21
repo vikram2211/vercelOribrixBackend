@@ -1,5 +1,21 @@
 import Warehouse from "./warehouse.model.js";
+import WarehouseStaff from "./warehouseStaff.model.js";
 
+export const createStaff = async (data) => {
+    return await WarehouseStaff.create(data);
+};
+
+export const getStaffByWarehouse = async (warehouseId, vendorId) => {
+    return await WarehouseStaff.find({ warehouseId, vendorId }).sort({ createdAt: -1 });
+};
+
+export const updateStaffStatus = async (staffId, vendorId, isActive) => {
+    return await WarehouseStaff.findOneAndUpdate(
+        { _id: staffId, vendorId },
+        { isActive },
+        { new: true }
+    );
+};
 export const createWarehouse = async (data) => {
     return await Warehouse.create(data);
 };

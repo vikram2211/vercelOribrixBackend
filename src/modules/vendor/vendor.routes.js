@@ -5,6 +5,7 @@ import { uploadKYC } from "../../middleware/upload.middleware.js";
 const router = express.Router();
 
 router.post("/register", vendorController.register);
+router.put("/update/:vendorId", vendorController.updateVendor);
 
 router.post("/kyc-upload/:vendorId",
     uploadKYC.fields([

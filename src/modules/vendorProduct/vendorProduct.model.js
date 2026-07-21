@@ -25,6 +25,11 @@ const vendorProductSchema = new Schema(
             required: true,
             min: 0
         },
+        priceType: {
+            type: String,
+            enum: ["Inclusive of GST", "Exclusive of GST"],
+            default: "Exclusive of GST"
+        },
         sellingPrice: {
             type: Number,
             required: true,
@@ -41,6 +46,10 @@ const vendorProductSchema = new Schema(
         returnPolicy: {
             type: String
         },
+        isCodAvailable: {
+            type: Boolean,
+            default: false
+        },
         stockQuantity: {
             type: Number,
             required: true,
@@ -51,6 +60,10 @@ const vendorProductSchema = new Schema(
             type: String,
             enum: ["ACTIVE", "OUT_OF_STOCK", "PAUSED"],
             default: "ACTIVE"
+        },
+        isDeleted: {
+            type: Boolean,
+            default: false
         }
     },
     {

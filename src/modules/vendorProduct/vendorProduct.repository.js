@@ -4,11 +4,11 @@ export const createListing = async (data) => {
     return await VendorProduct.create(data);
 };
 
-export const findListingsByVendor = async (vendorId, { skip, limit } = {}) => {
-    let query = VendorProduct.find({ vendorId })
+export const findListingsByVendor = async (vendorId, { skip, limit, filters = {} } = {}) => {
+    let query = VendorProduct.find({ vendorId, isDeleted: { $ne: true }, ...filters })
         .populate({
             path: 'productId',
-            select: 'name slug thumbnail images hsnCode gstPercentage categoryId brandId',
+            select: 'name sku slug thumbnail images description weight countryOfOrigin hsnCode gstPercentage categoryId brandId',
             populate: [
                 { path: 'brandId', select: 'name' },
                 { path: 'categoryId', select: 'name' }
@@ -23,12 +23,12 @@ export const findListingsByVendor = async (vendorId, { skip, limit } = {}) => {
     return await query;
 };
 
-export const countListingsByVendor = async (vendorId) => {
-    return await VendorProduct.countDocuments({ vendorId });
+export const countListingsByVendor = async (vendorId, filters = {}) => {
+    return await VendorProduct.countDocuments({ vendorId, isDeleted: { $ne: true }, ...filters });
 };
 
 export const findListingByIdAndVendor = async (id, vendorId) => {
-    return await VendorProduct.findOne({ _id: id, vendorId })
+    return await VendorProduct.findOne({ _id: id, vendorId, isDeleted: { $ne: true } })
         .populate('productId')
         .populate('warehouseId');
 };
@@ -39,10 +39,10 @@ export const getDistinctProductIds = async (query = {}) => {
 
 // Deep populated single listing fetch for the Product Detail Page (PDP)
 export const findListingById = async (id) => {
-    return await VendorProduct.findById(id)
+    return await VendorProduct.findOne({ _id: id, isDeleted: { $ne: true } })
         .populate({
             path: 'productId',
-            select: 'name description thumbnail images hsnCode gstPercentage categoryId subCategoryId brandId attributeValueIds',
+            select: 'name sku description thumbnail images hsnCode gstPercentage categoryId subCategoryId brandId attributeValueIds',
             populate: [
                 { path: 'brandId', select: 'name logo' },
                 { path: 'categoryId', select: 'name' },
@@ -59,7 +59,7 @@ export const findListingById = async (id) => {
 
 // Powerful search for Buyers OR Vendors to filter by Master Product traits
 export const findAllListings = async (query = {}) => {
-    return await VendorProduct.find(query)
+    return await VendorProduct.find({ ...query, isDeleted: { $ne: true } })
         .populate({
             path: 'productId',
             select: 'name slug thumbnail mfgDate categoryId subCategoryId brandId',
@@ -76,12 +76,12 @@ export const findAllListings = async (query = {}) => {
 
 export const updateListing = async (id, vendorId, updateData) => {
     return await VendorProduct.findOneAndUpdate(
-        { _id: id, vendorId },
+        { _id: id, vendorId, isDeleted: { $ne: true } },
         { $set: updateData },
         { new: true, runValidators: true }
     ).populate('productId');
 };
 
 export const removeListing = async (id, vendorId) => {
-    return await VendorProduct.findOneAndDelete({ _id: id, vendorId });
+    return await VendorProduct.findOneAndUpdate({ _id: id, vendorId }, { isDeleted: true }, { new: true });
 };

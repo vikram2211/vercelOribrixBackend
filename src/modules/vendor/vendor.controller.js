@@ -11,6 +11,16 @@ export const register = async (req, res, next) => {
     }
 };
 
+export const updateVendor = async (req, res, next) => {
+    try {
+        const vendorId = req.params.vendorId;
+        const result = await vendorService.modifyVendorData(vendorId, req.body);
+        return sendResponse(res, 200, "Vendor details updated successfully", result);
+    } catch (error) {
+        next(error);
+    }
+};
+
 export const uploadKYC = async (req, res, next) => {
     try {
         const vendorId = req.params.vendorId;

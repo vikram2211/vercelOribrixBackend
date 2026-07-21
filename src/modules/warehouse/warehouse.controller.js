@@ -58,7 +58,40 @@ export const deleteWarehouse = async (req, res, next) => {
         console.log("Resolved vendorId from JWT:", vendorId);
 
         await warehouseService.removeWarehouse(id, vendorId);
-        return sendResponse(res, 200, "Warehouse deleted successfully", null);
+        return sendResponse(res, 200, "Warehouse deleted successfully");
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const createStaff = async (req, res, next) => {
+    try {
+        const vendorId = await getVendorId(req);
+        const staff = await warehouseService.addStaff(vendorId, req.body);
+        return sendResponse(res, 201, "Staff added successfully", staff);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getWarehouseStaff = async (req, res, next) => {
+    try {
+        const vendorId = await getVendorId(req);
+        const { warehouseId } = req.query;
+        const staffList = await warehouseService.getWarehouseStaff(warehouseId, vendorId);
+        return sendResponse(res, 200, "Staff retrieved successfully", staffList);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const updateStaffStatus = async (req, res, next) => {
+    try {
+        const vendorId = await getVendorId(req);
+        const { id } = req.params;
+        const { isActive } = req.body;
+        const staff = await warehouseService.changeStaffStatus(id, vendorId, isActive);
+        return sendResponse(res, 200, "Staff status updated successfully", staff);
     } catch (error) {
         next(error);
     }

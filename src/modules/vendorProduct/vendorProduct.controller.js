@@ -22,14 +22,24 @@ export const createListing = async (req, res, next) => {
         if (payload.createNewMaster === 'true') payload.createNewMaster = true;
         if (payload.createNewMaster === 'false') payload.createNewMaster = false;
 
+        if (payload.mrp) payload.mrp = Number(payload.mrp);
+        if (payload.sellingPrice) payload.sellingPrice = Number(payload.sellingPrice);
+        if (payload.stockQuantity) payload.stockQuantity = Number(payload.stockQuantity);
+        if (payload.minOrderQuantity) payload.minOrderQuantity = Number(payload.minOrderQuantity);
+
         // Parse stringified masterData
         if (typeof payload.masterData === 'string') {
             payload.masterData = JSON.parse(payload.masterData);
         }
 
-        // Attach uploaded image path to masterData if present
-        if (req.file && req.file.path && payload.masterData) {
-            payload.masterData.thumbnail = req.file.path;
+        // Attach uploaded image paths to masterData if present
+        if (req.files && payload.masterData) {
+            if (req.files.thumbnail && req.files.thumbnail[0]) {
+                payload.masterData.thumbnail = req.files.thumbnail[0].path;
+            }
+            if (req.files.images && req.files.images.length > 0) {
+                payload.masterData.images = req.files.images.map(file => file.path);
+            }
         }
 
         const listing = await vendorProductService.addVendorListing(vendorId, payload);
@@ -58,7 +68,8 @@ export const getListings = async (req, res, next) => {
     try {
         const vendorId = await getVendorId(req);
         const { page, limit, skip } = pagination(req.query);
-        const result = await vendorProductService.getVendorListings(vendorId, { page, limit, skip });
+        const { warehouseId } = req.query;
+        const result = await vendorProductService.getVendorListings(vendorId, { page, limit, skip, warehouseId });
         return sendResponse(res, 200, "Your listings retrieved successfully", result);
     } catch (error) {
         next(error);

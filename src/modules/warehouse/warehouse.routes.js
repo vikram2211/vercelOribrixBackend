@@ -13,4 +13,9 @@ router.get("/", warehouseController.getMyWarehouses);
 router.put("/:id", warehouseController.updateWarehouse);
 router.delete("/:id", warehouseController.deleteWarehouse);
 
+// Staff routes
+router.post("/staff", warehouseController.createStaff);
+router.get("/staff", warehouseController.getWarehouseStaff); // ?warehouseId=...
+router.patch("/staff/:id/status", warehouseController.updateStaffStatus);
+
 export default router;

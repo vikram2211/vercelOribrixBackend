@@ -26,6 +26,18 @@ const warehouseSchema = new Schema(
             type: String // e.g., "09:00 AM - 06:00 PM"
         },
 
+        latitude: {
+            type: String
+        },
+
+        longitude: {
+            type: String
+        },
+
+        vehicleAccess: {
+            type: String // e.g., "Medium Trucks", "Large Trailers"
+        },
+
         servicedPincodes: [
             {
                 type: Schema.Types.ObjectId,
@@ -34,6 +46,11 @@ const warehouseSchema = new Schema(
         ],
 
         isActive: {
+            type: Boolean,
+            default: true
+        },
+
+        allowIntake: {
             type: Boolean,
             default: true
         }
