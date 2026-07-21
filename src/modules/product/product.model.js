@@ -65,10 +65,6 @@ const productSchema = new Schema(
         gstPercentage: {
             type: Number
         },
-<<<<<<< HEAD
-
-
-=======
         bulkPricing: [
             {
                 minQty: { type: Number, required: true },
@@ -88,7 +84,6 @@ const productSchema = new Schema(
         seoDescription: {
             type: String
         },
->>>>>>> dff7fb0 (updated apis)
         isActive: {
             type: Boolean,
             default: true

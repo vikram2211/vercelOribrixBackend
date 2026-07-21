@@ -269,7 +269,6 @@ export const loginCustomer = async (identifier, password, otp) => {
     };
 };
 
-<<<<<<< HEAD
 export const refreshTokens = async (refreshToken) => {
     // Verify token structure and signature
     let decoded;
@@ -301,7 +300,8 @@ export const refreshTokens = async (refreshToken) => {
         message: "Tokens refreshed successfully",
         ...tokens
     };
-=======
+};
+
 export const changePassword = async (userId, currentPassword, newPassword) => {
     const user = await User.findById(userId);
     if (!user) throw new ApiError(404, "User not found");
@@ -324,7 +324,6 @@ export const changePassword = async (userId, currentPassword, newPassword) => {
     await user.save();
 
     return { message: "Password changed successfully" };
->>>>>>> dff7fb0 (updated apis)
 };
 
 const findUserByIdentifier = async (identifier) => {

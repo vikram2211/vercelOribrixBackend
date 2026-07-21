@@ -1,14 +1,17 @@
 import * as authService from "./auth.service.js";
 import { sendResponse } from "../../utils/response.js";
-<<<<<<< HEAD
-<<<<<<< HEAD
-import { registerSchema, loginSchema, verifyOtpSchema, onboardingSchema, sendOtpSchema, customerLoginSchema, refreshTokenSchema } from "./auth.validation.js";
-=======
-import { registerSchema, loginSchema, verifyOtpSchema, onboardingSchema, sendOtpSchema, customerLoginSchema, changePasswordSchema } from "./auth.validation.js";
->>>>>>> dff7fb0 (updated apis)
-=======
-import { registerSchema, loginSchema, verifyOtpSchema, onboardingSchema, sendOtpSchema, customerLoginSchema, changePasswordSchema, forgotPasswordSchema, resetPasswordSchema } from "./auth.validation.js";
->>>>>>> 0f22cc5 (Add admin profile management and password reset functionality)
+import {
+    registerSchema,
+    loginSchema,
+    verifyOtpSchema,
+    onboardingSchema,
+    sendOtpSchema,
+    customerLoginSchema,
+    refreshTokenSchema,
+    changePasswordSchema,
+    forgotPasswordSchema,
+    resetPasswordSchema,
+} from "./auth.validation.js";
 import ApiError from "../../utils/ApiError.js";
 
 export const register = async (req, res, next) => {
