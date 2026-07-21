@@ -270,17 +270,22 @@ export const getListingDetails = async (listingId, userId) => {
 export const searchVendorProducts = async (filters, { page, limit, skip }) => {
     const query = { status: "ACTIVE" };
 
+    // STRICT ADMIN VALIDATION: Only return Vendor Products attached to an active, admin-approved Master Product!
+    const productQuery = { isActive: true };
+
     // Support filtering purely by broad Category
     if (filters.categoryId) {
-        const matchingProducts = await Product.find({ categoryId: filters.categoryId }).select('_id');
-        query.productId = { $in: matchingProducts.map(p => p._id) };
+        productQuery.categoryId = filters.categoryId;
     }
 
     // Support highly specific Sub-Category filtering (Overrides Category)
     if (filters.subCategoryId) {
-        const matchingProducts = await Product.find({ subCategoryId: filters.subCategoryId }).select('_id');
-        query.productId = { $in: matchingProducts.map(p => p._id) };
+        productQuery.subCategoryId = filters.subCategoryId;
     }
+
+    // Resolve exactly which Master Products are valid and active
+    const validMasterProducts = await Product.find(productQuery).select('_id');
+    query.productId = { $in: validMasterProducts.map(p => p._id) };
 
     if (filters.vendorId) {
         query.vendorId = filters.vendorId;
