@@ -164,7 +164,9 @@ export const loginWithPassword = async (identifier, password) => {
     if (user.role && user.role.name === "VENDOR_OWNER") {
         await emailService.sendVendorOTPEmail(user.email, otp);
     } else if (user.role && user.role.name === "ADMIN") {
-        await emailService.sendGenericOTPEmail(user.email, otp);
+        // await emailService.sendGenericOTPEmail(user.email, otp);
+        console.log("otp sent to mail id");
+        
     } else {
         // Leave everything else mapping to SMS
         await sendOTP(user.mobile, otp);
