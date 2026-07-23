@@ -146,3 +146,22 @@ export const uploadProduct = multer({
     limits: { fileSize: 10 * 1024 * 1024 }, // 10MB per image
     fileFilter: productImageFilter,
 });
+
+const warehouseStorage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: {
+        folder: "oribrix/warehouses",
+        allowed_formats: ["jpeg", "jpg", "png"],
+        format: async () => "jpg",
+        public_id: (req, file) => {
+            const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+            return `warehouse-${uniqueSuffix}`;
+        },
+    },
+});
+
+export const uploadWarehouse = multer({
+    storage: warehouseStorage,
+    limits: { fileSize: 10 * 1024 * 1024 },
+    fileFilter: imageFilter,
+});

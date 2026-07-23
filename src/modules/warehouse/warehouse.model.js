@@ -9,6 +9,10 @@ const warehouseSchema = new Schema(
             required: true
         },
 
+        image: {
+            type: String // Cloudinary URL
+        },
+
         vendorId: {
             type: Schema.Types.ObjectId,
             ref: "Vendor"

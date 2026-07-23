@@ -20,6 +20,9 @@ const getVendorId = async (req) => {
 export const createWarehouse = async (req, res, next) => {
     try {
         const vendorId = await getVendorId(req);
+        if (req.file && req.file.path) {
+            req.body.image = req.file.path;
+        }
         const warehouse = await warehouseService.addWarehouse(vendorId, req.body);
         return sendResponse(res, 201, "Warehouse created successfully", warehouse);
     } catch (error) {
@@ -41,6 +44,9 @@ export const updateWarehouse = async (req, res, next) => {
     try {
         const vendorId = await getVendorId(req);
         const { id } = req.params;
+        if (req.file && req.file.path) {
+            req.body.image = req.file.path;
+        }
         const updatedWarehouse = await warehouseService.editWarehouse(id, vendorId, req.body);
         return sendResponse(res, 200, "Warehouse updated successfully", updatedWarehouse);
     } catch (error) {

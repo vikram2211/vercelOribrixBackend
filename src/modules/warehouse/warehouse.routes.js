@@ -1,6 +1,7 @@
 import express from "express";
 import * as warehouseController from "./warehouse.controller.js";
 import { authenticate, authorize } from "../../middleware/auth.middleware.js";
+import { uploadWarehouse } from "../../middleware/upload.middleware.js";
 
 const router = express.Router();
 
@@ -8,9 +9,9 @@ const router = express.Router();
 router.use(authenticate);
 router.use(authorize("VENDOR_OWNER"));
 
-router.post("/", warehouseController.createWarehouse);
+router.post("/", uploadWarehouse.single('image'), warehouseController.createWarehouse);
 router.get("/", warehouseController.getMyWarehouses);
-router.put("/:id", warehouseController.updateWarehouse);
+router.put("/:id", uploadWarehouse.single('image'), warehouseController.updateWarehouse);
 router.delete("/:id", warehouseController.deleteWarehouse);
 
 // Staff routes
