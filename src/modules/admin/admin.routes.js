@@ -1,6 +1,7 @@
 import express from "express";
 import { authenticate, authorize } from "../../middleware/auth.middleware.js";
 import { uploadProduct } from "../../middleware/upload.middleware.js";
+import { AdminPermissions } from "./admin.permissions.js";
 import {
     createPermission,
     createProduct,
@@ -15,6 +16,8 @@ import {
     displayBrands,
     displayCategories,
     displayCustomerDetails,
+    displayCustomerReferralDetails,
+    displayCustomerReferrals,
     displayCustomers,
     displayPermissions,
     displayProductDetails,
@@ -32,12 +35,13 @@ import {
     editSubAdminDetails,
     editVendorDetails,
 } from "./admin.controller.js";
+import {
+    getAllCoupons,
+    updateCouponStatus,
+} from "../coupon/coupon.controller.js";
 
 const router = express.Router();
-export const AdminPermissions = {
-    ADMIN: "ADMIN",
-    SUB_ADMIN: "SUB_ADMIN",
-};
+export { AdminPermissions };
 
 router.get("/v1/admin/profile", authenticate, authorize(AdminPermissions), displayAdminProfile);
 router.patch("/v1/admin/profile", authenticate, authorize(AdminPermissions), editAdminProfile);
@@ -108,6 +112,21 @@ router.delete(
     deleteCustomer
 );
 
+// Customer Referrals =================================
+router.get(
+    "/v1/customer-Refer",
+    authenticate,
+    authorize(AdminPermissions),
+    displayCustomerReferrals
+);
+router.get(
+    "/v1/customer-Refer/:id",
+    authenticate,
+    authorize(AdminPermissions),
+    displayCustomerReferralDetails
+);
+
+
 // sub admin routes ==================
 router.post("/v1/sub-admin", authenticate, authorize("ADMIN"), createSubAdmin);
 router.get("/v1/sub-admins", authenticate, authorize("ADMIN"), displaySubAdmins);
@@ -152,6 +171,18 @@ router.patch(
     editProductDetails
 );
 router.delete("/v1/product/:id", authenticate, authorize("ADMIN"), deleteProduct);
+
+
+// Admin — approve / reject / mark alreadyUsed / expired
+router.patch(
+    "/v1/coupon-status/:id",
+    authenticate,
+    authorize(AdminPermissions),
+    updateCouponStatus
+);
+
+// Admin — list all uploaded coupons (optional ?status=pending)
+router.get("/v1/coupons", authenticate, authorize(AdminPermissions), getAllCoupons);
 
 
 export default router;

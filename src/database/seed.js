@@ -1,6 +1,20 @@
 import Role from "../modules/role/role.model.js";
 import User from "../modules/user/user.model.js";
+import Permission, {
+    DEFAULT_PERMISSIONS,
+} from "../modules/admin/permissions.model.js";
 import bcrypt from "bcryptjs";
+
+export const seedPermissions = async () => {
+    for (const permission of DEFAULT_PERMISSIONS) {
+        await Permission.updateOne(
+            { key: permission.key },
+            { $set: { ...permission, isActive: true } },
+            { upsert: true }
+        );
+    }
+    console.log(`Permissions seeded (${DEFAULT_PERMISSIONS.length} modules)`);
+};
 
 export const seedRoles = async () => {
     const roles = [

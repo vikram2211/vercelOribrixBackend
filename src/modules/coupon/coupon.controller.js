@@ -44,6 +44,7 @@ export const updateCouponStatus = asyncHandler(async (req, res) => {
         status: req.body.status,
         amount: req.body.amount,
         percentage: req.body.percentage,
+        reviewedBy: req.user.userId,
     });
     return sendResponse(res, 200, "Coupon updated successfully", coupon);
 });

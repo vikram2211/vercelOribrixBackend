@@ -63,6 +63,19 @@ const ensureUniqueId = async () => {
     return uniqueId;
 };
 
+const formatReviewedBy = (reviewedBy) => {
+    if (!reviewedBy) return null;
+    if (typeof reviewedBy !== "object") {
+        return { userId: reviewedBy };
+    }
+    return {
+        userId: reviewedBy._id,
+        name: reviewedBy.fullName || "",
+        email: reviewedBy.email || "",
+        role: reviewedBy.role?.name || "",
+    };
+};
+
 const formatCoupon = (coupon, { includeUser = true } = {}) => {
     if (!coupon) return null;
 
@@ -74,6 +87,8 @@ const formatCoupon = (coupon, { includeUser = true } = {}) => {
         amount: coupon.amount ?? null,
         percentage: coupon.percentage ?? null,
         status: coupon.status,
+        reviewedBy: formatReviewedBy(coupon.reviewedBy),
+        reviewedAt: coupon.reviewedAt || null,
         createdAt: coupon.createdAt,
         updatedAt: coupon.updatedAt,
     };
@@ -209,7 +224,7 @@ export const getCouponsForUser_Services = async ({
  */
 export const updateCouponStatus_Services = async (
     id,
-    { status, amount, percentage }
+    { status, amount, percentage, reviewedBy }
 ) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
         throw new ApiError(400, "Invalid coupon id");
@@ -251,6 +266,11 @@ export const updateCouponStatus_Services = async (
 
         if (status === "accept" && !coupon.uniqueId) {
             updateData.uniqueId = await ensureUniqueId();
+        }
+
+        if (reviewedBy) {
+            updateData.reviewedBy = reviewedBy;
+            updateData.reviewedAt = new Date();
         }
     }
 

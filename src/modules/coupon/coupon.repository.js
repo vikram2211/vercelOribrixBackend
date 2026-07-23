@@ -24,6 +24,11 @@ export const findCouponsPaginated_Repository = async ({
     const [coupons, total] = await Promise.all([
         Coupon.find(query)
             .populate("userId", "fullName email mobile photo")
+            .populate({
+                path: "reviewedBy",
+                select: "fullName email",
+                populate: { path: "role", select: "name" },
+            })
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(limit),
@@ -71,5 +76,11 @@ export const updateCouponById_Repository = async (id, data) => {
         { _id: id, ...notDeleted },
         { $set: data },
         { new: true, runValidators: true }
-    ).populate("userId", "fullName email mobile photo");
+    )
+        .populate("userId", "fullName email mobile photo")
+        .populate({
+            path: "reviewedBy",
+            select: "fullName email",
+            populate: { path: "role", select: "name" },
+        });
 };

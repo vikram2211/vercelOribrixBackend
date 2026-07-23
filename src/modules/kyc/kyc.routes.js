@@ -1,6 +1,6 @@
 import express from "express";
 import { authenticate, authorize } from "../../middleware/auth.middleware.js";
-import { AdminPermissions } from "../admin/admin.routes.js";
+import { AdminPermissions } from "../admin/admin.permissions.js";
 import {
     displayAllKYC_Vender,
     displayKYC_Vender_fullDetails,

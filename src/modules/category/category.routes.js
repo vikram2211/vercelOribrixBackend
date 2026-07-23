@@ -1,6 +1,6 @@
 import express from "express";
 import { authenticate, authorize } from "../../middleware/auth.middleware.js";
-import { AdminPermissions } from "../admin/admin.routes.js";
+import { AdminPermissions } from "../admin/admin.permissions.js";
 import { uploadCategory } from "../../middleware/upload.middleware.js";
 import {
   displayProductCategories,

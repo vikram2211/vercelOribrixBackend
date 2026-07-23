@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import ApiError from "../../utils/ApiError.js";
 import * as adminRepo from "./admin.repository.js";
 import * as emailService from "../../services/email.service.js";
+import { DEFAULT_PERMISSIONS } from "./permissions.model.js";
 
 const VENDOR_STATUSES = [
     "PENDING_VERIFICATION",
@@ -624,6 +625,139 @@ export const deleteCustomer_Services = async (customerId) => {
     return true;
 };
 
+// ─── Customer Referrals ───────────────────────────────────
+
+const formatReferralStats = (stats = {}) => ({
+    totalSignups: stats.totalSignups || 0,
+    successfulReferrals: stats.successfulReferrals || 0,
+    totalEarned: stats.totalEarned || 0,
+});
+
+const formatReferredBy = (referrer) => {
+    if (!referrer) return null;
+    return {
+        customerId: referrer._id,
+        name: referrer.fullName || "",
+        email: referrer.email || "",
+        mobile: referrer.mobile || "",
+        referralCode: referrer.myReferralCode || "",
+    };
+};
+
+const formatCustomerReferralListItem = (customer) => ({
+    customerId: customer._id,
+    name: customer.fullName || "",
+    email: customer.email || "",
+    mobile: customer.mobile || "",
+    photo: customer.photo || "",
+    pincode: customer.pincode || "",
+    isActive: customer.isActive,
+    isVerified: customer.isVerified,
+    myReferralCode: customer.myReferralCode || "",
+    referredBy: formatReferredBy(customer.referredBy),
+    referralStats: formatReferralStats(customer.referralStats),
+    /** Live count of users who signed up with this customer's referral code */
+    usersUsedReferralCount: customer.usersUsedReferralCount || 0,
+    hasPlacedFirstOrder: customer.hasPlacedFirstOrder ?? false,
+    walletBalance: customer.walletBalance || 0,
+    createdAt: customer.createdAt,
+});
+
+const formatReferredUserItem = (user) => ({
+    customerId: user._id,
+    name: user.fullName || "",
+    email: user.email || "",
+    mobile: user.mobile || "",
+    photo: user.photo || "",
+    pincode: user.pincode || "",
+    isActive: user.isActive,
+    isVerified: user.isVerified,
+    myReferralCode: user.myReferralCode || "",
+    hasPlacedFirstOrder: user.hasPlacedFirstOrder ?? false,
+    referralStats: formatReferralStats(user.referralStats),
+    createdAt: user.createdAt,
+});
+
+export const displayCustomerReferrals_Services = async ({
+    page,
+    limit,
+    skip,
+    search,
+}) => {
+    const { customers, total } =
+        await adminRepo.findCustomersWithReferralsPaginated({
+            skip,
+            limit,
+            search: search?.trim() || "",
+        });
+
+    return {
+        customers: customers.map(formatCustomerReferralListItem),
+        pagination: {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit) || 0,
+        },
+    };
+};
+
+export const displayCustomerReferralDetails_Services = async ({
+    customerId,
+    page,
+    limit,
+    skip,
+    search,
+}) => {
+    if (!customerId) {
+        throw new ApiError(400, "Customer ID is required");
+    }
+    if (!mongoose.Types.ObjectId.isValid(customerId)) {
+        throw new ApiError(400, "Invalid customer ID");
+    }
+
+    const result = await adminRepo.findCustomerReferralDetails({
+        customerId,
+        skip,
+        limit,
+        search: search?.trim() || "",
+    });
+
+    if (!result) {
+        throw new ApiError(404, "Customer not found");
+    }
+
+    const { customer, referredUsers, totalReferred, filteredTotal } = result;
+
+    return {
+        customer: {
+            customerId: customer._id,
+            name: customer.fullName || "",
+            email: customer.email || "",
+            mobile: customer.mobile || "",
+            photo: customer.photo || "",
+            pincode: customer.pincode || "",
+            isActive: customer.isActive,
+            isVerified: customer.isVerified,
+            myReferralCode: customer.myReferralCode || "",
+            referredBy: formatReferredBy(customer.referredBy),
+            referralStats: formatReferralStats(customer.referralStats),
+            usersUsedReferralCount: totalReferred,
+            hasPlacedFirstOrder: customer.hasPlacedFirstOrder ?? false,
+            walletBalance: customer.walletBalance || 0,
+            createdAt: customer.createdAt,
+        },
+        referredUsers: referredUsers.map(formatReferredUserItem),
+        pagination: {
+            page,
+            limit,
+            total: filteredTotal,
+            totalPages: Math.ceil(filteredTotal / limit) || 0,
+            totalReferred,
+        },
+    };
+};
+
 // ─── Sub Admin ────────────────────────────────────────────
 
 const formatSubAdmin = (user) => ({
@@ -904,15 +1038,32 @@ export const editAdminProfile_Services = async (userId, data) => {
 
 // ─── Permissions ──────────────────────────────────────────
 
+// ─── Permissions ──────────────────────────────────────────
+
 const formatPermission = (permission) => ({
     permissionId: permission._id,
+    key: permission.key || "",
     name: permission.name || "",
     description: permission.description || "",
+    group: permission.group || "GENERAL",
+    route: permission.route || "",
+    sortOrder: permission.sortOrder ?? 0,
+    isActive: permission.isActive !== false,
     createdAt: permission.createdAt,
     updatedAt: permission.updatedAt,
 });
 
+const ensureDefaultPermissions = async () => {
+    const count = await adminRepo.countPermissions();
+    if (count >= DEFAULT_PERMISSIONS.length) return;
+
+    for (const permission of DEFAULT_PERMISSIONS) {
+        await adminRepo.upsertPermissionByKey(permission);
+    }
+};
+
 export const displayPermissions_Services = async () => {
+    await ensureDefaultPermissions();
     const permissions = await adminRepo.findAllPermissions();
     return permissions.map(formatPermission);
 };
@@ -921,12 +1072,30 @@ export const createPermission_Services = async (data) => {
     const name = String(data.name || "").trim();
     if (!name) throw new ApiError(400, "Permission name is required");
 
-    const exists = await adminRepo.findPermissionByName(name);
-    if (exists) throw new ApiError(400, "Permission already exists");
+    const key = String(data.key || name)
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "_")
+        .replace(/^_|_$/g, "");
+
+    if (!key) throw new ApiError(400, "Permission key is required");
+
+    const existsByName = await adminRepo.findPermissionByName(name);
+    if (existsByName) throw new ApiError(400, "Permission already exists");
+
+    const existsByKey = await adminRepo.findPermissionByKey(key);
+    if (existsByKey) throw new ApiError(400, "Permission key already exists");
 
     const created = await adminRepo.createPermission({
+        key,
         name,
         description: data.description ? String(data.description).trim() : "",
+        group: data.group ? String(data.group).trim() : "GENERAL",
+        route: data.route ? String(data.route).trim() : "",
+        sortOrder: Number.isFinite(Number(data.sortOrder))
+            ? Number(data.sortOrder)
+            : 0,
+        isActive: data.isActive !== false,
     });
 
     return formatPermission(created.toObject ? created.toObject() : created);
@@ -948,8 +1117,34 @@ export const editPermission_Services = async (permissionId, data) => {
         updateData.name = name;
     }
 
+    if (data.key !== undefined) {
+        const key = String(data.key)
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "_")
+            .replace(/^_|_$/g, "");
+        if (!key) throw new ApiError(400, "Permission key cannot be empty");
+        const duplicate = await adminRepo.findPermissionByKey(key);
+        if (duplicate && String(duplicate._id) !== String(permissionId)) {
+            throw new ApiError(400, "Permission key already exists");
+        }
+        updateData.key = key;
+    }
+
     if (data.description !== undefined) {
         updateData.description = String(data.description).trim();
+    }
+    if (data.group !== undefined) {
+        updateData.group = String(data.group).trim() || "GENERAL";
+    }
+    if (data.route !== undefined) {
+        updateData.route = String(data.route).trim();
+    }
+    if (data.sortOrder !== undefined) {
+        updateData.sortOrder = Number(data.sortOrder) || 0;
+    }
+    if (data.isActive !== undefined) {
+        updateData.isActive = Boolean(data.isActive);
     }
 
     if (Object.keys(updateData).length === 0) {

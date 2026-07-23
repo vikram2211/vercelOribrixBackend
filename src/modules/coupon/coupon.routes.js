@@ -1,11 +1,9 @@
 import express from "express";
 import { authenticate, authorize } from "../../middleware/auth.middleware.js";
-import { AdminPermissions } from "../admin/admin.routes.js";
+import { AdminPermissions } from "../admin/admin.permissions.js";
 import { uploadCoupon as uploadCouponMiddleware } from "../../middleware/upload.middleware.js";
 import {
-    getAllCoupons,
     getCouponsForUser,
-    updateCouponStatus,
     uploadCoupon,
 } from "./coupon.controller.js";
 
@@ -20,8 +18,6 @@ router.post(
     uploadCoupon
 );
 
-// Admin — list all uploaded coupons (optional ?status=pending)
-router.get("/v1", authenticate, authorize(AdminPermissions), getAllCoupons);
 
 // Customer — accepted / alreadyUsed / expired (reject & deleted hidden)
 router.get(
@@ -31,12 +27,6 @@ router.get(
     getCouponsForUser
 );
 
-// Admin — approve / reject / mark alreadyUsed / expired
-router.patch(
-    "/v1/:id",
-    authenticate,
-    authorize(AdminPermissions),
-    updateCouponStatus
-);
+
 
 export default router;

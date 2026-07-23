@@ -49,6 +49,16 @@ const couponSchema = new Schema(
             enum: COUPON_STATUS,
             default: "pending",
         },
+        /** Admin / Sub-admin who last reviewed (approve / reject / etc.) */
+        reviewedBy: {
+            type: Schema.Types.ObjectId,
+            ref: "User",
+            default: null,
+        },
+        reviewedAt: {
+            type: Date,
+            default: null,
+        },
         isDelete: {
             type: Boolean,
             default: false,

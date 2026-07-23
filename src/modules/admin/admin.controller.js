@@ -14,6 +14,8 @@ import {
     displayBrands_Services,
     displayCategories_Services,
     displayCustomerDetails_Services,
+    displayCustomerReferralDetails_Services,
+    displayCustomerReferrals_Services,
     displayCustomers_Services,
     displayPermissions_Services,
     displayProductDetails_Services,
@@ -158,6 +160,48 @@ export const deleteCustomer = asyncHandler(async (req, res) => {
     await deleteCustomer_Services(id);
 
     return sendResponse(res, 200, "Customer deleted successfully");
+});
+
+// ─── Customer Referrals ───────────────────────────────────
+
+export const displayCustomerReferrals = asyncHandler(async (req, res) => {
+    const { page, limit, skip } = pagination(req.query);
+    const { search } = req.query;
+
+    const result = await displayCustomerReferrals_Services({
+        page,
+        limit,
+        skip,
+        search,
+    });
+
+    return sendResponse(
+        res,
+        200,
+        "Customer referrals fetched successfully",
+        result
+    );
+});
+
+export const displayCustomerReferralDetails = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { page, limit, skip } = pagination(req.query);
+    const { search } = req.query;
+
+    const result = await displayCustomerReferralDetails_Services({
+        customerId: id,
+        page,
+        limit,
+        skip,
+        search,
+    });
+
+    return sendResponse(
+        res,
+        200,
+        "Customer referral details fetched successfully",
+        result
+    );
 });
 
 // ─── Sub Admin ────────────────────────────────────────────

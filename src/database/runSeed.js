@@ -1,5 +1,5 @@
 import connectDB from './connection.js';
-import { seedRoles, seedAdmin } from './seed.js';
+import { seedRoles, seedAdmin, seedPermissions } from './seed.js';
 
 const runSeed = async () => {
     try {
@@ -8,7 +8,8 @@ const runSeed = async () => {
 
         await seedRoles();
         await seedAdmin();
-        console.log("Roles and Admin seeded successfully!");
+        await seedPermissions();
+        console.log("Roles, Admin and Permissions seeded successfully!");
 
         process.exit(0);
     } catch (error) {

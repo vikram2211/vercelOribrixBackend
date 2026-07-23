@@ -308,6 +308,117 @@ export const findCustomerById = async (customerId) => {
     return { user, profile, sites, addresses };
 };
 
+export const findCustomersWithReferralsPaginated = async ({
+    skip,
+    limit,
+    search,
+}) => {
+    const customerRole = await findRoleByName("CUSTOMER");
+    if (!customerRole) {
+        return { customers: [], total: 0 };
+    }
+
+    const filter = { role: customerRole._id, isActive: true };
+
+    if (search) {
+        const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const regex = { $regex: escaped, $options: "i" };
+        filter.$or = [
+            { fullName: regex },
+            { email: regex },
+            { mobile: regex },
+            { myReferralCode: regex },
+        ];
+    }
+
+    const [customers, total] = await Promise.all([
+        User.find(filter)
+            .select(
+                "fullName email mobile photo pincode isActive isVerified myReferralCode referredBy referralStats hasPlacedFirstOrder walletBalance createdAt updatedAt"
+            )
+            .populate("referredBy", "fullName email mobile myReferralCode")
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit)
+            .lean(),
+        User.countDocuments(filter),
+    ]);
+
+    const customerIds = customers.map((c) => c._id);
+    const referralCounts = customerIds.length
+        ? await User.aggregate([
+              { $match: { referredBy: { $in: customerIds } } },
+              { $group: { _id: "$referredBy", count: { $sum: 1 } } },
+          ])
+        : [];
+
+    const countByReferrer = Object.fromEntries(
+        referralCounts.map((row) => [String(row._id), row.count])
+    );
+
+    const enriched = customers.map((customer) => ({
+        ...customer,
+        usersUsedReferralCount: countByReferrer[String(customer._id)] || 0,
+    }));
+
+    return { customers: enriched, total };
+};
+
+export const findCustomerReferralDetails = async ({
+    customerId,
+    skip,
+    limit,
+    search,
+}) => {
+    const customerRole = await findRoleByName("CUSTOMER");
+    if (!customerRole) return null;
+
+    const customer = await User.findOne({
+        _id: customerId,
+        role: customerRole._id,
+    })
+        .select(
+            "fullName email mobile photo pincode isActive isVerified myReferralCode referredBy referralStats hasPlacedFirstOrder walletBalance createdAt updatedAt"
+        )
+        .populate("referredBy", "fullName email mobile myReferralCode")
+        .lean();
+
+    if (!customer) return null;
+
+    const referredFilter = { referredBy: customer._id };
+
+    if (search) {
+        const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const regex = { $regex: escaped, $options: "i" };
+        referredFilter.$or = [
+            { fullName: regex },
+            { email: regex },
+            { mobile: regex },
+            { myReferralCode: regex },
+        ];
+    }
+
+    const [referredUsers, totalReferred, filteredTotal] = await Promise.all([
+        User.find(referredFilter)
+            .select(
+                "fullName email mobile photo pincode isActive isVerified myReferralCode hasPlacedFirstOrder referralStats createdAt"
+            )
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit)
+            .lean(),
+        User.countDocuments({ referredBy: customer._id }),
+        User.countDocuments(referredFilter),
+    ]);
+
+    return {
+        customer,
+        referredUsers,
+        totalReferred,
+        filteredTotal,
+    };
+};
+
 export const updateCustomerUser = async (customerId, updateData) => {
     const customerRole = await findRoleByName("CUSTOMER");
     if (!customerRole) return null;
@@ -477,7 +588,21 @@ export const createPermission = async (data) => {
 };
 
 export const findAllPermissions = async () => {
-    return await Permission.find().sort({ createdAt: -1 }).lean();
+    return await Permission.find({ isActive: { $ne: false } })
+        .sort({ sortOrder: 1, name: 1 })
+        .lean();
+};
+
+export const countPermissions = async () => {
+    return await Permission.countDocuments();
+};
+
+export const upsertPermissionByKey = async (permission) => {
+    return await Permission.findOneAndUpdate(
+        { key: permission.key },
+        { $set: { ...permission, isActive: permission.isActive ?? true } },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+    ).lean();
 };
 
 export const findPermissionById = async (permissionId) => {
@@ -486,6 +611,10 @@ export const findPermissionById = async (permissionId) => {
 
 export const findPermissionByName = async (name) => {
     return await Permission.findOne({ name });
+};
+
+export const findPermissionByKey = async (key) => {
+    return await Permission.findOne({ key: String(key).toLowerCase() });
 };
 
 export const updatePermissionById = async (permissionId, updateData) => {
